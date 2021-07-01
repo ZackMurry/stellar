@@ -1,0 +1,4 @@
+cmake-build-debug
+spec.stellar
+test.stellar
+.idea
