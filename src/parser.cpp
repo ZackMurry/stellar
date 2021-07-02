@@ -264,6 +264,39 @@ llvm::Value* ASTFunctionDefinition::codegen() {
     return func;
 }
 
+class ASTFunctionInvocation : public ASTNode {
+    string name;
+    vector<ASTNode*> args;
+public:
+    ASTFunctionInvocation(string name, vector<ASTNode*> args) : name(move(name)), args(move(args)) {}
+    string toString() override {
+        string s = "[FUN_INV: " + name + " args: [";
+        for (auto const& arg : args) {
+            s += arg->toString();
+        }
+        s += "]";
+        return s;
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTFunctionInvocation::codegen() {
+    llvm::Function* calleeFunc = module->getFunction(name);
+    if (!calleeFunc) {
+        cerr << "Error: unknown function reference" << endl;
+        exit(EXIT_FAILURE);
+    }
+    if (calleeFunc->arg_size() != args.size()) {
+        cerr << "Error: incorrect number of arguments passed to function " << name << endl;
+        exit(EXIT_FAILURE);
+    }
+    vector<llvm::Value*> argsV;
+    for (auto & arg : args) {
+        argsV.push_back(arg->codegen());
+    }
+    return builder->CreateCall(calleeFunc, argsV, "calltmp");
+}
+
 ASTNode* parseIdentifierExpression(vector<Token> tokens);
 
 ASTNode* parseExpression(const vector<Token>& tokens);
@@ -506,9 +539,33 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
         return new ASTVariableExpression(identifier);
     }
-    // todo function invocations
-    cerr << "Error: unimplemented function invocation" << endl;
-    exit(EXIT_FAILURE);
+    cout << "Function invocation" << endl;
+    // Consume '('
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+
+    vector<ASTNode*> args;
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+        while (true) {
+            args.push_back(move(parseExpression(tokens)));
+            if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+                break;
+            }
+            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+                cerr << "Error: expected ',' or ')' in argument list" << endl;
+                exit(EXIT_FAILURE);
+            }
+            // Consume ','
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+        }
+    }
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    return new ASTFunctionInvocation(identifier, args);
 }
 
 void initializeModule() {
