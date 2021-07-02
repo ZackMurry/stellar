@@ -64,7 +64,8 @@ enum VariableType {
     VARIABLE_TYPE_I64,
     VARIABLE_TYPE_F,
     VARIABLE_TYPE_D,
-    VARIABLE_TYPE_B
+    VARIABLE_TYPE_B,
+    VARIABLE_TYPE_V
 };
 
 class ASTVariableDefinition : public ASTNode {
@@ -76,7 +77,19 @@ public:
         return "[VAR_DEF: " + name + " " + to_string(type) + "]";
     }
     llvm::Value *codegen() override;
+    VariableType getType() { return type; };
+    string getName() { return name; };
 };
+
+static llvm::BasicBlock* entryBlock;
+static llvm::BasicBlock* currBlock;
+
+void createEntryFunction() {
+    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
+    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "main", *module);
+    entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
+    currBlock = entryBlock;
+}
 
 llvm::Value* ASTVariableDefinition::codegen() {
     llvm::Type* llvmType;
@@ -90,9 +103,9 @@ llvm::Value* ASTVariableDefinition::codegen() {
         cerr << "Parser: unimplemented type " << type << endl;
         exit(EXIT_FAILURE);
     }
-    llvm::AllocaInst* inst = builder->CreateAlloca(llvmType, nullptr, name);
-    builder->CreateLoad(inst);
-    return inst;
+    builder->SetInsertPoint(currBlock);
+    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, 0, name.c_str());
+    return alloca;
 }
 
 class ASTVariableDeclaration : public ASTNode {
@@ -107,34 +120,54 @@ public:
     llvm::Value *codegen() override;
 };
 
-static llvm::BasicBlock* entryBlock;
-
-void createEntryFunction() {
-    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
-    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "main", *module);
-    entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
-}
-
-
-llvm::Value* ASTVariableDeclaration::codegen() {
-    llvm::Type* llvmType;
+llvm::Type* getLLVMTypeByVariableType(VariableType type) {
     if (type == VARIABLE_TYPE_F) {
-        llvmType = llvm::Type::getFloatTy(*context);
+        return llvm::Type::getFloatTy(*context);
     } else if (type == VARIABLE_TYPE_D) {
-        llvmType = llvm::Type::getDoubleTy(*context);
+        return llvm::Type::getDoubleTy(*context);
     } else if (type == VARIABLE_TYPE_I32) {
-        llvmType = llvm::Type::getInt32Ty(*context);
+        return llvm::Type::getInt32Ty(*context);
+    } else if (type == VARIABLE_TYPE_V) {
+        return llvm::Type::getVoidTy(*context);
     } else {
         cerr << "Parser: unimplemented type " << type << endl;
         exit(EXIT_FAILURE);
     }
+}
+
+llvm::Value* ASTVariableDeclaration::codegen() {
+    llvm::Type* llvmType = getLLVMTypeByVariableType(type);
     cout << "CreateAlloca" << endl;
     cout << "Context: " << context << endl;
-    builder->SetInsertPoint(entryBlock);
+    builder->SetInsertPoint(currBlock);
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, 0, name.c_str());
     cout << "CreateStore" << endl;
     builder->CreateStore(value->codegen(), alloca);
+    namedValues[name] = alloca;
     return alloca;
+}
+
+class ASTVariableAssignment : public ASTNode {
+    string name;
+    ASTNode* value;
+public:
+    ASTVariableAssignment(string name, ASTNode* value) : name(move(name)), value(value) {};
+    string toString() override {
+        return "[VAR_ASSIGN: " + name + " " + value->toString() + "]";
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTVariableAssignment::codegen() {
+    cout << "Getting named val" << endl;
+    cout << "named val: " << namedValues[name]->getName().str() << endl;
+    llvm::Value* var = namedValues[name];
+    if (!var) { // todo: this can't detect use of variables declared in a function outside of the function
+        cerr << "Error: illegal use of undeclared variable '" << name << "'" << endl;
+        exit(EXIT_FAILURE);
+    }
+    builder->CreateStore(value->codegen(), var);
+    return var;
 }
 
 class ASTVariableExpression : public ASTNode {
@@ -169,6 +202,66 @@ public:
 llvm::Value* ASTNumberExpression::codegen() {
     // todo i vs f inference on number literals
     return llvm::ConstantFP::get(*context, llvm::APFloat(val));
+}
+
+class ASTFunctionDefinition : public ASTNode {
+    string name;
+    vector<ASTVariableDefinition*> args;
+    vector<ASTNode*> body;
+    VariableType returnType;
+public:
+    ASTFunctionDefinition(string name, vector<ASTVariableDefinition*> args, vector<ASTNode*> body, VariableType returnType) : name(move(name)), args(move(args)), body(move(body)), returnType(returnType) {}
+    string toString() override {
+        string s = "[FUN_DEF: " + name + " args: [";
+        for (const auto& arg : args) {
+            s += arg->toString();
+        }
+        s += "] body: [";
+        for (const auto& line : body) {
+            s += line->toString();
+        }
+        s += "] ]";
+        return s;
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTFunctionDefinition::codegen() {
+    cout << "FuncDef codegen" << endl;
+    vector<llvm::Type*> argTypes;
+    for (const auto& arg : args) {
+        llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType());
+        if (llvmType == nullptr) {
+            cerr << "Error mapping variable type to LLVM type" << endl;
+            exit(EXIT_FAILURE);
+        }
+        argTypes.push_back(llvmType);
+    }
+    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType), argTypes, false);
+    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
+    unsigned index = 0;
+    for (auto &arg : func->args()) {
+        arg.setName(args[index++]->getName());
+    }
+    llvm::BasicBlock* bb = llvm::BasicBlock::Create(*context, "entry", func);
+    cout << "Created basic block" << endl;
+    builder->SetInsertPoint(bb);
+    namedValues.clear();
+    index = 0;
+    for (auto &arg : func->args()) {
+        llvm::IRBuilder<> tempBuilder(&func->getEntryBlock(), func->getEntryBlock().begin());
+        llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
+        builder->CreateStore(&arg, alloca);
+        namedValues[string(arg.getName())] = alloca;
+    }
+    currBlock = bb;
+    for (auto &node : body) {
+        node->codegen();
+    }
+    currBlock = entryBlock;
+    // todo return values
+    cout << "Returned" << endl;
+    return func;
 }
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens);
@@ -271,12 +364,107 @@ ASTNode* parseExpression(const vector<Token>& tokens) {
     return parseBinOpRHS(tokens, 0, lhs);
 }
 
+int getVariableTypeFromToken(const Token& token) {
+    if (token.type != TOKEN_IDENTIFIER) {
+        return -1;
+    }
+    // does not include v type
+    if (token.value == "i32") {
+        return VARIABLE_TYPE_I32;
+    } else if (token.value == "f") {
+        return VARIABLE_TYPE_F;
+    } else if (token.value == "d") {
+        return VARIABLE_TYPE_D;
+    } else if (token.value == "b") {
+        return VARIABLE_TYPE_B;
+    } else {
+        return -1;
+    }
+}
+
+vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens);
+
+// Expects the parsingIndex to be at an opening parenthesis
+ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const string& name) {
+    cout << "Function definition" << endl;
+    vector<ASTVariableDefinition*> args;
+    while (++parsingIndex < tokens.size()) {
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            cerr << "Error: expected type in function parameter" << endl;
+            exit(EXIT_FAILURE);
+        }
+        int ivt = getVariableTypeFromToken(tokens[parsingIndex]);
+        if (ivt == -1) {
+            cerr << "Error: expected type in function parameter" << endl;
+            exit(EXIT_FAILURE);
+        }
+        parsingIndex++;
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            cerr << "Error: expected parameter name after type" << endl;
+            exit(EXIT_FAILURE);
+        }
+        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+            break;
+        }
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+        cerr << "Error: expected ')' after function parameters" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume ')'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
+        cerr << "Error: expected '{' after function prototype" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume '{'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    int stackSize = 0;
+    unsigned long end = parsingIndex;
+    vector<Token> bodyTokens;
+    while (stackSize > 0 || (tokens[end].type != TOKEN_PUNCTUATION || tokens[end].value != "}")) {
+        if (end + 1 >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        if (tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "{") {
+            stackSize++;
+        } else if (tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
+            stackSize--;
+        }
+        end++;
+        if (stackSize == 0 && tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
+            break;
+        }
+        bodyTokens.push_back(tokens[end]);
+    }
+    cout << "body token size: " << bodyTokens.size() << endl;
+    vector<ASTNode*> body = parseWithoutTokenizing(bodyTokens);
+    cout << "body size: " << body.size() << endl;
+    parsingIndex = end + 1;
+    cout << "Arg size before creating: " << args.size() << endl;
+    return new ASTFunctionDefinition(name, args, body, type);
+}
+
 ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
         cerr << "Error: expected identifier after variable type but found token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
         exit(EXIT_FAILURE);
     }
     string name = tokens[parsingIndex++].value; // Get var name and consume token
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
+        return parseFunctionDefinition(tokens, type, name);
+    } else if (type == VARIABLE_TYPE_V) {
+        cerr << "Error: only functions can use the 'v' type" << endl;
+        exit(EXIT_FAILURE);
+    }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_NEWLINE) {
             parsingIndex++;
@@ -290,15 +478,30 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
     return new ASTVariableDeclaration(name, type, parseExpression(tokens));
 }
 
+// Expects current token to be the equals sign in 'a = E'
+ASTNode* parseVariableAssignment(vector<Token> tokens, string name) {
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
+        cerr << "Unexpected parsing error: variable assignment parsing failed (= expected)" << endl;
+        exit(EXIT_FAILURE);
+    }
+    parsingIndex++; // Consume '='
+    return new ASTVariableAssignment(move(name), parseExpression(tokens));
+}
+
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex++].value; // Get and consume identifier
     if (identifier == "i32") {
         return parseVariableDeclaration(tokens, VARIABLE_TYPE_I32);
     } else if (identifier == "f") {
         return parseVariableDeclaration(tokens, VARIABLE_TYPE_F);
+    } else if (identifier == "v") {
+        return parseVariableDeclaration(tokens, VARIABLE_TYPE_V);
     }// todo other types
     if (parsingIndex >= tokens.size()) {
         printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
+        return parseVariableAssignment(tokens, identifier);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
         return new ASTVariableExpression(identifier);
@@ -315,7 +518,7 @@ void initializeModule() {
     createEntryFunction();
 }
 
-vector<ASTNode*> parse(vector<Token> tokens) {
+vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
     parsingIndex = 0;
     vector<ASTNode*> nodes;
     while (parsingIndex < tokens.size()) {
@@ -329,6 +532,11 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         }
     }
     cout << "Parsed " << nodes.size() << " nodes" << endl;
+    return nodes;
+}
+
+vector<ASTNode*> parse(vector<Token> tokens) {
+    vector<ASTNode*> nodes = parseWithoutTokenizing(move(tokens));
     initializeModule();
     cout << "Initialized module" << endl;
     for (auto const &node : nodes) {

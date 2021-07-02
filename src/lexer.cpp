@@ -50,6 +50,18 @@ struct Token readToken() {
         lexingIndex++;
         return token;
     }
+    if (ch == '{') {
+        token.type = TOKEN_PUNCTUATION;
+        token.value = "{";
+        lexingIndex++;
+        return token;
+    }
+    if (ch == '}') {
+        token.type = TOKEN_PUNCTUATION;
+        token.value = "}";
+        lexingIndex++;
+        return token;
+    }
     if (ch == '+') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "+";
@@ -71,6 +83,12 @@ struct Token readToken() {
     if (ch == '/') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "/";
+        lexingIndex++;
+        return token;
+    }
+    if (ch == ',') {
+        token.type = TOKEN_PUNCTUATION;
+        token.value = ",";
         lexingIndex++;
         return token;
     }

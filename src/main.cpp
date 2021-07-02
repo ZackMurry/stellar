@@ -11,6 +11,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     vector<Token> tokens = tokenizeFile(argv[1]);
+    cout << "Lexing complete" << endl;
     vector<ASTNode*> nodes = parse(tokens);
     return 0;
 }
