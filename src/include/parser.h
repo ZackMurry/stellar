@@ -4,6 +4,7 @@
 
 #include <vector>
 #include "LexerToken.h"
+#include "llvm/IR/Constant.h"
 
 #ifndef STELLAR_PARSER_H
 #define STELLAR_PARSER_H
@@ -14,6 +15,7 @@ public:
     virtual std::string toString() {
         return "ROOT_NODE";
     }
+    virtual llvm::Value *codegen() = 0;
 };
 
 std::vector<ASTNode*> parse(std::vector<Token> tokens);

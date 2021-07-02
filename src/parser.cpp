@@ -5,11 +5,18 @@
 #include <utility>
 #include <vector>
 #include <iostream>
+#include <map>
 #include "include/parser.h"
+#include "llvm/IR/IRBuilder.h"
 
 using namespace std;
 
 unsigned long parsingIndex = 0;
+
+static llvm::LLVMContext* context;
+static llvm::IRBuilder<>* builder;
+static llvm::Module* module;
+static map<string, llvm::Value*> namedValues;
 
 void printOutOfTokensError() {
     cerr << "Error: expected token, but nothing found";
@@ -31,7 +38,24 @@ public:
     string toString() override {
         return "[BIN_EXPRESSION: " + to_string(op) + " " + lhs->toString() + " " + rhs->toString() + "]";
     }
+    llvm::Value *codegen() override;
 };
+
+llvm::Value* ASTBinaryExpression::codegen() {
+    llvm::Value* l = lhs->codegen();
+    llvm::Value* r = rhs->codegen();
+    switch (op) {
+        case OPERATOR_PLUS:
+            return builder->CreateAdd(l, r, "addtmp");
+        case OPERATOR_MINUS:
+            return builder->CreateSub(l, r, "subtmp");
+        case OPERATOR_TIMES:
+            return builder->CreateMul(l, r, "multmp");
+        case OPERATOR_DIVIDE:
+            cerr << "Parser: division is not implemented" << endl;
+            exit(EXIT_FAILURE);
+    }
+}
 
 enum VariableType {
     VARIABLE_TYPE_I8,
@@ -51,7 +75,25 @@ public:
     string toString() override {
         return "[VAR_DEF: " + name + " " + to_string(type) + "]";
     }
+    llvm::Value *codegen() override;
 };
+
+llvm::Value* ASTVariableDefinition::codegen() {
+    llvm::Type* llvmType;
+    if (type == VARIABLE_TYPE_F) {
+        llvmType = llvm::Type::getFloatTy(*context);
+    } else if (type == VARIABLE_TYPE_D) {
+        llvmType = llvm::Type::getDoubleTy(*context);
+    } else if (type == VARIABLE_TYPE_I32) {
+        llvmType = llvm::Type::getInt32Ty(*context);
+    } else {
+        cerr << "Parser: unimplemented type " << type << endl;
+        exit(EXIT_FAILURE);
+    }
+    llvm::AllocaInst* inst = builder->CreateAlloca(llvmType, nullptr, name);
+    builder->CreateLoad(inst);
+    return inst;
+}
 
 class ASTVariableDeclaration : public ASTNode {
     string name;
@@ -62,7 +104,38 @@ public:
     string toString() override {
         return "[VAR_DECL: " + name + " " + to_string(type) + " " + value->toString() + "]";
     }
+    llvm::Value *codegen() override;
 };
+
+static llvm::BasicBlock* entryBlock;
+
+void createEntryFunction() {
+    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
+    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "main", *module);
+    entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
+}
+
+
+llvm::Value* ASTVariableDeclaration::codegen() {
+    llvm::Type* llvmType;
+    if (type == VARIABLE_TYPE_F) {
+        llvmType = llvm::Type::getFloatTy(*context);
+    } else if (type == VARIABLE_TYPE_D) {
+        llvmType = llvm::Type::getDoubleTy(*context);
+    } else if (type == VARIABLE_TYPE_I32) {
+        llvmType = llvm::Type::getInt32Ty(*context);
+    } else {
+        cerr << "Parser: unimplemented type " << type << endl;
+        exit(EXIT_FAILURE);
+    }
+    cout << "CreateAlloca" << endl;
+    cout << "Context: " << context << endl;
+    builder->SetInsertPoint(entryBlock);
+    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, 0, name.c_str());
+    cout << "CreateStore" << endl;
+    builder->CreateStore(value->codegen(), alloca);
+    return alloca;
+}
 
 class ASTVariableExpression : public ASTNode {
     string name;
@@ -71,7 +144,17 @@ public:
     string toString() override {
         return "[VAR_EXP: " + name + "]";
     }
+    llvm::Value *codegen() override;
 };
+
+llvm::Value* ASTVariableExpression::codegen() {
+    llvm::Value* v = namedValues.at(name);
+    if (!v) {
+        cerr << "Parser: undeclared variable " << name << endl;
+        exit(EXIT_FAILURE);
+    }
+    return builder->CreateLoad(v, name.c_str());
+}
 
 class ASTNumberExpression : public ASTNode {
     double val;
@@ -80,8 +163,13 @@ public:
     string toString() override {
         return "[NUM_EXP: " + to_string(val) + "]";
     }
+    llvm::Value *codegen() override;
 };
 
+llvm::Value* ASTNumberExpression::codegen() {
+    // todo i vs f inference on number literals
+    return llvm::ConstantFP::get(*context, llvm::APFloat(val));
+}
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens);
 
@@ -220,6 +308,13 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     exit(EXIT_FAILURE);
 }
 
+void initializeModule() {
+    context = new llvm::LLVMContext();
+    module = new llvm::Module("module", *context);
+    builder = new llvm::IRBuilder<>(*context);
+    createEntryFunction();
+}
+
 vector<ASTNode*> parse(vector<Token> tokens) {
     parsingIndex = 0;
     vector<ASTNode*> nodes;
@@ -234,8 +329,12 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         }
     }
     cout << "Parsed " << nodes.size() << " nodes" << endl;
+    initializeModule();
+    cout << "Initialized module" << endl;
     for (auto const &node : nodes) {
         cout << node->toString() << endl;
+        node->codegen();
     }
+    module->print(llvm::errs(), nullptr);
     return nodes;
 }
