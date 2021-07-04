@@ -225,26 +225,38 @@ public:
 
 llvm::Value* ASTFunctionDefinition::codegen() {
     cout << "FuncDef codegen" << endl;
-    vector<llvm::Type*> argTypes;
-    for (const auto& arg : args) {
-        llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType());
-        if (llvmType == nullptr) {
-            cerr << "Error mapping variable type to LLVM type" << endl;
-            exit(EXIT_FAILURE);
-        }
-        argTypes.push_back(llvmType);
+    llvm::Function* func = module->getFunction(name);
+    if (func && !func->empty()) {
+        cerr << "Error: function " << name << " cannot be redefined" << endl;
+        exit(EXIT_FAILURE);
     }
-    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType), argTypes, false);
-    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
-    unsigned index = 0;
-    for (auto &arg : func->args()) {
-        arg.setName(args[index++]->getName());
+    vector<llvm::Type*> argTypes;
+    if (!func) {
+        for (const auto& arg : args) {
+            llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType());
+            if (llvmType == nullptr) {
+                cerr << "Error mapping variable type to LLVM type" << endl;
+                exit(EXIT_FAILURE);
+            }
+            argTypes.push_back(llvmType);
+        }
+        llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType), argTypes, false);
+        func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
+        unsigned index = 0;
+        for (auto &arg : func->args()) {
+            arg.setName(args[index++]->getName());
+        }
+    } else {
+        // Get arg types
+        for (const auto& arg : func->args()) {
+            argTypes.push_back(arg.getType());
+        }
     }
     llvm::BasicBlock* bb = llvm::BasicBlock::Create(*context, "entry", func);
     cout << "Created basic block" << endl;
     builder->SetInsertPoint(bb);
     namedValues.clear();
-    index = 0;
+    unsigned index = 0;
     for (auto &arg : func->args()) {
         llvm::IRBuilder<> tempBuilder(&func->getEntryBlock(), func->getEntryBlock().begin());
         llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
@@ -256,7 +268,6 @@ llvm::Value* ASTFunctionDefinition::codegen() {
         node->codegen();
     }
     currBlock = entryBlock;
-    // todo return values
     cout << "Returned" << endl;
     return func;
 }
@@ -408,6 +419,8 @@ int getVariableTypeFromToken(const Token& token) {
         return VARIABLE_TYPE_D;
     } else if (token.value == "b") {
         return VARIABLE_TYPE_B;
+    } else if (token.value == "v") {
+        return VARIABLE_TYPE_V;
     } else {
         return -1;
     }
@@ -420,7 +433,7 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
     cout << "Function definition" << endl;
     vector<ASTVariableDefinition*> args;
     while (++parsingIndex < tokens.size()) {
-        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
             break;
         }
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
@@ -438,8 +451,12 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
             exit(EXIT_FAILURE);
         }
         args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
+        cout << "arg: " << args.back()->getName() << endl;
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+            break;
         }
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
@@ -599,6 +616,108 @@ ASTNode* parseReturnExpression(vector<Token> tokens) {
     return new ASTReturn(parseExpression(tokens));
 }
 
+class ASTExternDeclaration : public ASTNode {
+    string name;
+    vector<ASTVariableDefinition*> args;
+    VariableType returnType;
+public:
+    ASTExternDeclaration(string name, vector<ASTVariableDefinition*> args, VariableType returnType) : name(move(name)), args(move(args)), returnType(returnType) {}
+    string toString() override {
+        string s = "[EXTERN: " + to_string(returnType) + " " + name + " args: [";
+        for (const auto& arg : args) {
+            s += arg->toString();
+        }
+        s += "]]";
+        return s;
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTExternDeclaration::codegen() {
+    // todo implement extern functions
+    // currently, function codegen has been rewired to detect if an extern has been declared, but there is no method to declare externs yet
+    // plan to use externs for print etc
+    vector<llvm::Type*> argTypes;
+    for (const auto& arg : args) {
+        llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType());
+        if (llvmType == nullptr) {
+            cerr << "Error mapping variable type to LLVM type" << endl;
+            exit(EXIT_FAILURE);
+        }
+        argTypes.push_back(llvmType);
+    }
+    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType), argTypes, false);
+    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
+    unsigned index = 0;
+    for (auto &arg : func->args()) {
+        arg.setName(args[index++]->getName());
+    }
+    return func;
+}
+
+ASTNode* parseExternExpression(vector<Token> tokens) {
+    cout << "Extern definition" << endl;
+    // Consume 'x'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        cerr << "Error: expected function return type after 'x'" << endl;
+        exit(EXIT_FAILURE);
+    }
+    int returnType = getVariableTypeFromToken(tokens[parsingIndex]);
+    if (returnType == -1) {
+        cerr << "Error: expected function return type after 'x' but instead found " << tokens[parsingIndex].value << endl;
+        exit(EXIT_FAILURE);
+    }
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        cerr << "Error: expected extern function's name after its return type" << endl;
+        exit(EXIT_FAILURE);
+    }
+    string name = tokens[parsingIndex].value;
+    // Consume name
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    vector<ASTVariableDefinition*> args;
+    while (++parsingIndex < tokens.size()) {
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+            break;
+        }
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            cerr << "Error: expected type in function parameter" << endl;
+            exit(EXIT_FAILURE);
+        }
+        int ivt = getVariableTypeFromToken(tokens[parsingIndex]);
+        if (ivt == -1 || ivt == VARIABLE_TYPE_V) {
+            cerr << "Error: expected type in function parameter" << endl;
+            exit(EXIT_FAILURE);
+        }
+        parsingIndex++;
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            cerr << "Error: expected parameter name after type" << endl;
+            exit(EXIT_FAILURE);
+        }
+        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+            break;
+        }
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+        cerr << "Error: expected ')' after function parameters" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume ')'
+    parsingIndex++;
+    return new ASTExternDeclaration(name, args, (VariableType) returnType);
+}
+
 void initializeModule() {
     context = new llvm::LLVMContext();
     module = new llvm::Module("module", *context);
@@ -616,6 +735,8 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
             parsingIndex++;
         } else if (tokens[parsingIndex].type == TOKEN_RETURN) {
             nodes.push_back(parseReturnExpression(tokens));
+        } else if (tokens[parsingIndex].type == TOKEN_EXTERN) {
+            nodes.push_back(parseExternExpression(tokens));
         } else {
             cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
             parsingIndex++;

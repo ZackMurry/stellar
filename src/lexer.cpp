@@ -144,7 +144,6 @@ vector<Token> tokenize(string data) {
     while (lexingIndex < content.size()) {
         struct Token t = readToken();
         cout << t.type << ":" << t.value << endl;
-        cout << lexingIndex << endl;
         tokens.push_back(t);
         if (lexingIndex < content.size() && content.at(lexingIndex) == '\n') {
             tokens.push_back({ TOKEN_NEWLINE, "" });
