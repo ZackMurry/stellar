@@ -96,6 +96,22 @@ set(STELLAR_SRCS src/main.cpp src/lexer.cpp src/include/lexer.h src/include/Lexe
 
 add_definitions(-D_STELLAR_DEBUG_LVL_2)
 
+
+link_libraries()
+execute_process(COMMAND llvm-config --libs OUTPUT_VARIABLE LIBS)
+execute_process(COMMAND llvm-config --system-libs OUTPUT_VARIABLE SYS_LIBS)
+execute_process(COMMAND llvm-config --ldflags OUTPUT_VARIABLE LDF)
+#message(STATUS "Found LLVM" ${LIBS})
+
+string(STRIP ${LIBS} LIBS)
+string(STRIP ${SYS_LIBS} SYS_LIBS)
+string(STRIP ${LDF} LDF)
+
+link_libraries(${LIBS} ${SYS_LIBS} ${LDF})
+
+execute_process(COMMAND llvm-config --cxxflags OUTPUT_VARIABLE CMAKE_CXX_FLAGS)
+string(STRIP ${CMAKE_CXX_FLAGS} CMAKE_CXX_FLAGS)
+
 add_library(core ${STELLAR_SRCS})
 add_executable(exe src/main.cpp)
 target_link_libraries(exe core)

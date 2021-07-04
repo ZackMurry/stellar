@@ -14,7 +14,6 @@ download_project(
         UPDATE_DISCONNECTED 1
 )
 
-
 add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR} EXCLUDE_FROM_ALL)
 
 add_executable(runUnitTests gtest.cpp lexer_test.cpp)

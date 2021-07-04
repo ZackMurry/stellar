@@ -8,6 +8,15 @@
 #include <map>
 #include "include/parser.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/IR/Verifier.h"
 
 using namespace std;
 
@@ -269,6 +278,7 @@ llvm::Value* ASTFunctionDefinition::codegen() {
     }
     currBlock = entryBlock;
     cout << "Returned" << endl;
+    llvm::verifyFunction(*func);
     return func;
 }
 
@@ -502,6 +512,7 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
 }
 
 ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
+    cout << "Variable declaration" << endl;
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
         cerr << "Error: expected identifier after variable type but found token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
         exit(EXIT_FAILURE);
@@ -538,13 +549,12 @@ ASTNode* parseVariableAssignment(vector<Token> tokens, string name) {
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex++].value; // Get and consume identifier
-    if (identifier == "i32") {
-        return parseVariableDeclaration(tokens, VARIABLE_TYPE_I32);
-    } else if (identifier == "f") {
-        return parseVariableDeclaration(tokens, VARIABLE_TYPE_F);
-    } else if (identifier == "v") {
-        return parseVariableDeclaration(tokens, VARIABLE_TYPE_V);
-    }// todo other types
+    int variableType = getVariableTypeFromToken(tokens[parsingIndex]);
+    if (variableType != -1) {
+        cout << "Variable declaration" << endl;
+        // todo detecting function definitions isn't working
+        return parseVariableDeclaration(tokens, (VariableType) variableType);
+    }
     if (parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
@@ -568,6 +578,7 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
                 break;
             }
             if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+                cout << "i: " << parsingIndex << endl;
                 cerr << "Error: expected ',' or ')' in argument list" << endl;
                 exit(EXIT_FAILURE);
             }
@@ -634,9 +645,6 @@ public:
 };
 
 llvm::Value* ASTExternDeclaration::codegen() {
-    // todo implement extern functions
-    // currently, function codegen has been rewired to detect if an extern has been declared, but there is no method to declare externs yet
-    // plan to use externs for print etc
     vector<llvm::Type*> argTypes;
     for (const auto& arg : args) {
         llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType());
@@ -755,5 +763,43 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         node->codegen();
     }
     module->print(llvm::errs(), nullptr);
+    cout << "Writing object file..." << endl;
+    auto targetTriple = llvm::sys::getDefaultTargetTriple();
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+    string error;
+    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+    if (!target) {
+        llvm::errs() << error;
+        exit(EXIT_FAILURE);
+    }
+    auto CPU = "generic";
+    auto features = "";
+    llvm::TargetOptions opt;
+    auto RM = llvm::Optional<llvm::Reloc::Model>();
+    auto targetMachine = target->createTargetMachine(targetTriple, CPU, features, opt, RM);
+    cout << "Setting data layout" << endl;
+    module->setDataLayout(targetMachine->createDataLayout());
+    module->setTargetTriple(targetTriple);
+    auto filename = "output.o";
+    error_code EC;
+    llvm::raw_fd_ostream dest(filename, EC, llvm::sys::fs::OF_None);
+    if (EC) {
+        llvm::errs() << "Could not open file: " << EC.message();
+        exit(EXIT_FAILURE);
+    }
+    llvm::legacy::PassManager pass;
+    auto fileType = llvm::CGFT_ObjectFile;
+    if (targetMachine->addPassesToEmitFile(pass, dest, nullptr, fileType)) {
+        llvm::errs() << "Target machine cannot emit a file of this type";
+        exit(EXIT_FAILURE);
+    }
+    cout << "Running pass" << endl;
+    pass.run(*module);
+    cout << "Pass complete" << endl;
+    dest.flush();
     return nodes;
 }
