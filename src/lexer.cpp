@@ -92,6 +92,12 @@ struct Token readToken() {
         lexingIndex++;
         return token;
     }
+    if (ch == ';') { // For for-loops
+        token.type = TOKEN_PUNCTUATION;
+        token.value = ";";
+        lexingIndex++;
+        return token;
+    }
 
     string word;
     while (lexingIndex < content.size() && isalnum(ch)) {
@@ -111,7 +117,17 @@ struct Token readToken() {
         token.value = "false";
         return token;
     }
-    if (isNumeric(word)) {
+    if (word == "r") {
+        token.type = TOKEN_RETURN;
+        token.value = "";
+        return token;
+    }
+    if (word == "x") {
+        token.type = TOKEN_EXTERN;
+        token.value = "";
+        return token;
+    }
+    if (isNumeric(word) && !word.empty()) {
         token.type = TOKEN_NUMBER;
         token.value = word;
         return token;
@@ -128,6 +144,7 @@ vector<Token> tokenize(string data) {
     while (lexingIndex < content.size()) {
         struct Token t = readToken();
         cout << t.type << ":" << t.value << endl;
+        cout << lexingIndex << endl;
         tokens.push_back(t);
         if (lexingIndex < content.size() && content.at(lexingIndex) == '\n') {
             tokens.push_back({ TOKEN_NEWLINE, "" });

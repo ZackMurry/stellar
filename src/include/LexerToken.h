@@ -12,7 +12,9 @@ enum TokenType {
     TOKEN_NUMBER,
     TOKEN_PUNCTUATION,
     TOKEN_BOOLEAN,
-    TOKEN_NEWLINE
+    TOKEN_NEWLINE,
+    TOKEN_RETURN,
+    TOKEN_EXTERN
 };
 
 struct Token {

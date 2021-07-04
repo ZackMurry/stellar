@@ -104,7 +104,7 @@ llvm::Value* ASTVariableDefinition::codegen() {
         exit(EXIT_FAILURE);
     }
     builder->SetInsertPoint(currBlock);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, 0, name.c_str());
+    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
     return alloca;
 }
 
@@ -137,11 +137,8 @@ llvm::Type* getLLVMTypeByVariableType(VariableType type) {
 
 llvm::Value* ASTVariableDeclaration::codegen() {
     llvm::Type* llvmType = getLLVMTypeByVariableType(type);
-    cout << "CreateAlloca" << endl;
-    cout << "Context: " << context << endl;
     builder->SetInsertPoint(currBlock);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, 0, name.c_str());
-    cout << "CreateStore" << endl;
+    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
     builder->CreateStore(value->codegen(), alloca);
     namedValues[name] = alloca;
     return alloca;
@@ -274,7 +271,7 @@ public:
         for (auto const& arg : args) {
             s += arg->toString();
         }
-        s += "]";
+        s += "]]";
         return s;
     }
     llvm::Value* codegen() override;
@@ -294,6 +291,7 @@ llvm::Value* ASTFunctionInvocation::codegen() {
     for (auto & arg : args) {
         argsV.push_back(arg->codegen());
     }
+    builder->SetInsertPoint(currBlock);
     return builder->CreateCall(calleeFunc, argsV, "calltmp");
 }
 
@@ -422,6 +420,9 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
     cout << "Function definition" << endl;
     vector<ASTVariableDefinition*> args;
     while (++parsingIndex < tokens.size()) {
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+            break;
+        }
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             cerr << "Error: expected type in function parameter" << endl;
             exit(EXIT_FAILURE);
@@ -439,9 +440,6 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
         args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
-        }
-        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
-            break;
         }
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
@@ -548,7 +546,7 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     vector<ASTNode*> args;
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
         while (true) {
-            args.push_back(move(parseExpression(tokens)));
+            args.push_back(parseExpression(tokens));
             if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
                 break;
             }
@@ -568,6 +566,39 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     return new ASTFunctionInvocation(identifier, args);
 }
 
+class ASTReturn : public ASTNode {
+    ASTNode* exp;
+public:
+    explicit ASTReturn(ASTNode* exp) : exp(exp) {}
+    string toString() override {
+        if (!exp) {
+            return "[RETURN: void]";
+        }
+        return "[RETURN: " + exp->toString() + "]";
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTReturn::codegen() {
+    if (exp) {
+        llvm::Value* val = exp->codegen();
+        return builder->CreateRet(val);
+    } else { // Void
+        return builder->CreateRetVoid();
+    }
+}
+
+ASTNode* parseReturnExpression(vector<Token> tokens) {
+    // Consume 'r'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type == TOKEN_NEWLINE) {
+        return new ASTReturn(nullptr);
+    }
+    return new ASTReturn(parseExpression(tokens));
+}
+
 void initializeModule() {
     context = new llvm::LLVMContext();
     module = new llvm::Module("module", *context);
@@ -583,6 +614,8 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
             nodes.push_back(parseIdentifierExpression(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_EOF || tokens[parsingIndex].type == TOKEN_NEWLINE) {
             parsingIndex++;
+        } else if (tokens[parsingIndex].type == TOKEN_RETURN) {
+            nodes.push_back(parseReturnExpression(tokens));
         } else {
             cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
             parsingIndex++;
