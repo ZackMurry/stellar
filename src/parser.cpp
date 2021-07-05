@@ -95,7 +95,7 @@ static llvm::BasicBlock* currBlock;
 
 void createEntryFunction() {
     llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
-    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "main", *module);
+    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "STELLAR_ENTRY", *module);
     entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
     currBlock = entryBlock;
 }
@@ -196,9 +196,9 @@ llvm::Value* ASTVariableExpression::codegen() {
 }
 
 class ASTNumberExpression : public ASTNode {
-    double val;
+    int val;
 public:
-    explicit ASTNumberExpression(double val) : val(val) {}
+    explicit ASTNumberExpression(int val) : val(val) {}
     string toString() override {
         return "[NUM_EXP: " + to_string(val) + "]";
     }
@@ -207,7 +207,7 @@ public:
 
 llvm::Value* ASTNumberExpression::codegen() {
     // todo i vs f inference on number literals
-    return llvm::ConstantFP::get(*context, llvm::APFloat(val));
+    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), val, true);
 }
 
 class ASTFunctionDefinition : public ASTNode {
@@ -418,9 +418,9 @@ ASTNode* parseExpression(const vector<Token>& tokens) {
 
 int getVariableTypeFromToken(const Token& token) {
     if (token.type != TOKEN_IDENTIFIER) {
+        cout << "Not an identifier" << endl;
         return -1;
     }
-    // does not include v type
     if (token.value == "i32") {
         return VARIABLE_TYPE_I32;
     } else if (token.value == "f") {
@@ -519,6 +519,7 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
     }
     string name = tokens[parsingIndex++].value; // Get var name and consume token
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
+        cout << "Function definition" << endl;
         return parseFunctionDefinition(tokens, type, name);
     } else if (type == VARIABLE_TYPE_V) {
         cerr << "Error: only functions can use the 'v' type" << endl;
@@ -548,15 +549,15 @@ ASTNode* parseVariableAssignment(vector<Token> tokens, string name) {
 }
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
-    string identifier = tokens[parsingIndex++].value; // Get and consume identifier
+    string identifier = tokens[parsingIndex].value; // Get and consume identifier
     int variableType = getVariableTypeFromToken(tokens[parsingIndex]);
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
     if (variableType != -1) {
         cout << "Variable declaration" << endl;
         // todo detecting function definitions isn't working
         return parseVariableDeclaration(tokens, (VariableType) variableType);
-    }
-    if (parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
     }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
         return parseVariableAssignment(tokens, identifier);
@@ -763,6 +764,9 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         node->codegen();
     }
     module->print(llvm::errs(), nullptr);
+    cout << "Adding return to main" << endl;
+    builder->SetInsertPoint(entryBlock);
+    builder->CreateRetVoid();
     cout << "Writing object file..." << endl;
     auto targetTriple = llvm::sys::getDefaultTargetTriple();
     llvm::InitializeAllTargetInfos();
