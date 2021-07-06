@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <string>
 #include "include/parser.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/FileSystem.h"
@@ -74,7 +75,7 @@ enum VariableType {
     VARIABLE_TYPE_F,
     VARIABLE_TYPE_D,
     VARIABLE_TYPE_B,
-    VARIABLE_TYPE_V
+    VARIABLE_TYPE_V,
 };
 
 class ASTVariableDefinition : public ASTNode {
@@ -100,18 +101,23 @@ void createEntryFunction() {
     currBlock = entryBlock;
 }
 
-llvm::Value* ASTVariableDefinition::codegen() {
-    llvm::Type* llvmType;
+llvm::Type* getLLVMTypeByVariableType(VariableType type) {
     if (type == VARIABLE_TYPE_F) {
-        llvmType = llvm::Type::getFloatTy(*context);
+        return llvm::Type::getFloatTy(*context);
     } else if (type == VARIABLE_TYPE_D) {
-        llvmType = llvm::Type::getDoubleTy(*context);
+        return llvm::Type::getDoubleTy(*context);
     } else if (type == VARIABLE_TYPE_I32) {
-        llvmType = llvm::Type::getInt32Ty(*context);
+        return llvm::Type::getInt32Ty(*context);
+    } else if (type == VARIABLE_TYPE_V) {
+        return llvm::Type::getVoidTy(*context);
     } else {
         cerr << "Parser: unimplemented type " << type << endl;
         exit(EXIT_FAILURE);
     }
+}
+
+llvm::Value* ASTVariableDefinition::codegen() {
+    llvm::Type* llvmType = getLLVMTypeByVariableType(type);
     builder->SetInsertPoint(currBlock);
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
     return alloca;
@@ -128,21 +134,6 @@ public:
     }
     llvm::Value *codegen() override;
 };
-
-llvm::Type* getLLVMTypeByVariableType(VariableType type) {
-    if (type == VARIABLE_TYPE_F) {
-        return llvm::Type::getFloatTy(*context);
-    } else if (type == VARIABLE_TYPE_D) {
-        return llvm::Type::getDoubleTy(*context);
-    } else if (type == VARIABLE_TYPE_I32) {
-        return llvm::Type::getInt32Ty(*context);
-    } else if (type == VARIABLE_TYPE_V) {
-        return llvm::Type::getVoidTy(*context);
-    } else {
-        cerr << "Parser: unimplemented type " << type << endl;
-        exit(EXIT_FAILURE);
-    }
-}
 
 llvm::Value* ASTVariableDeclaration::codegen() {
     llvm::Type* llvmType = getLLVMTypeByVariableType(type);
@@ -316,12 +307,68 @@ llvm::Value* ASTFunctionInvocation::codegen() {
     return builder->CreateCall(calleeFunc, argsV, "calltmp");
 }
 
+class ASTArrayDefinition : public ASTNode {
+    string name;
+    VariableType elementType;
+    ASTNode* length;
+public:
+    ASTArrayDefinition(string name, VariableType elementType, ASTNode* length) : name(move(name)), elementType(elementType), length(length) {}
+    string toString() override {
+        return "[ARR_DEF: " + name + " " + to_string(elementType) + " size: " + length->toString() + "]";
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTArrayDefinition::codegen() {
+    llvm::Type* llvmElType = getLLVMTypeByVariableType(elementType);
+    builder->SetInsertPoint(currBlock);
+    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmElType, length->codegen(), name);
+    namedValues[name] = alloca;
+    return alloca;
+}
+
+class ASTArrayAccess : public ASTNode {
+    string name;
+    ASTNode* index;
+public:
+    ASTArrayAccess(string name, ASTNode* index) : name(move(name)), index(index) {}
+    string toString() override {
+        return "[ARR_ACCESS: " + name + " at " + index->toString() + "]";
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTArrayAccess::codegen() {
+    builder->SetInsertPoint(currBlock);
+    auto* gep = builder->CreateInBoundsGEP(namedValues[name], index->codegen(), "acctmp");
+    gep->mutateType(llvm::Type::getInt32PtrTy(*context));
+    return builder->CreateLoad(gep, "loadtmp");
+}
+
+class ASTArrayIndexAssignment : public ASTNode {
+    string name;
+    ASTNode* index;
+    ASTNode* value;
+public:
+    ASTArrayIndexAssignment(string name, ASTNode* index, ASTNode* value) : name(move(name)), index(index), value(value) {}
+    string toString() override {
+        return "[ARR_ASSIGN: " + name + " at " + index->toString() + " to " + value->toString() + "]";
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTArrayIndexAssignment::codegen() {
+    builder->SetInsertPoint(currBlock);
+    llvm::Value* ref = builder->CreateInBoundsGEP(namedValues[name], llvm::ArrayRef<llvm::Value*>(index->codegen()), "acctmp");
+    return builder->CreateStore(value->codegen(), ref);
+}
+
 ASTNode* parseIdentifierExpression(vector<Token> tokens);
 
 ASTNode* parseExpression(const vector<Token>& tokens);
 
 ASTNode* parseNumberExpression(vector<Token> tokens) {
-    double val = strtod(tokens[parsingIndex++].value.c_str(), nullptr);
+    int val = stoi(tokens[parsingIndex++].value);
     return new ASTNumberExpression(val);
 }
 
@@ -378,7 +425,7 @@ int getTokenPrecedence(const Token& token) {
 ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
     cout << "Parsing binary operator RHS" << endl;
     while (true) {
-        if (tokens[parsingIndex].type == TOKEN_EOF || tokens[parsingIndex].type == TOKEN_NEWLINE) {
+        if (tokens[parsingIndex].type == TOKEN_EOF || tokens[parsingIndex].type == TOKEN_NEWLINE/* || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "]")*/) {
             return lhs;
         }
         int tokenPrec = getTokenPrecedence(tokens[parsingIndex]);
@@ -511,8 +558,36 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
     return new ASTFunctionDefinition(name, args, body, type);
 }
 
+// Expects parsingIndex to be at [
+ASTNode* parseArrayDefinition(vector<Token> tokens, VariableType type) {
+    // Consume '['
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    ASTNode* length = parseExpression(tokens);
+    cout << "Length: " << length->toString() << endl;
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
+        cerr << "Error: expected ending brace after array length" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume ']'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        cerr << "Error: expected identifier after array type" << endl;
+        exit(EXIT_FAILURE);
+    }
+    string name = tokens[parsingIndex++].value; // Consume name
+    return new ASTArrayDefinition(name, type, length);
+}
+
 ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
-    cout << "Variable declaration" << endl;
+    cout << "Variable declaration: " << parsingIndex << endl;
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
+        cout << "Array definition" << endl;
+        return parseArrayDefinition(tokens, type);
+    }
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
         cerr << "Error: expected identifier after variable type but found token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
         exit(EXIT_FAILURE);
@@ -520,6 +595,7 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
     string name = tokens[parsingIndex++].value; // Get var name and consume token
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
         cout << "Function definition" << endl;
+        // todo returning arrays from functions
         return parseFunctionDefinition(tokens, type, name);
     } else if (type == VARIABLE_TYPE_V) {
         cerr << "Error: only functions can use the 'v' type" << endl;
@@ -548,6 +624,31 @@ ASTNode* parseVariableAssignment(vector<Token> tokens, string name) {
     return new ASTVariableAssignment(move(name), parseExpression(tokens));
 }
 
+// Expects parsingIndex to be at '['
+ASTNode* parseArrayAccess(vector<Token> tokens, string name) {
+    cout << "Array access" << endl;
+    // Consume '['
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    ASTNode* index = parseExpression(tokens);
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
+        cerr << "Error: expected ']' after array index" << endl;
+        exit(EXIT_FAILURE);
+    }
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
+        // Consume '='
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        return new ASTArrayIndexAssignment(move(name), index, parseExpression(tokens));
+    }
+    return new ASTArrayAccess(move(name), index);
+}
+
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value; // Get and consume identifier
     int variableType = getVariableTypeFromToken(tokens[parsingIndex]);
@@ -555,14 +656,16 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
         printOutOfTokensError();
     }
     if (variableType != -1) {
-        cout << "Variable declaration" << endl;
-        // todo detecting function definitions isn't working
         return parseVariableDeclaration(tokens, (VariableType) variableType);
     }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
         return parseVariableAssignment(tokens, identifier);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
+        cout << "Variable expression" << endl;
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
+            return parseArrayAccess(tokens, identifier);
+        }
         return new ASTVariableExpression(identifier);
     }
     cout << "Function invocation" << endl;

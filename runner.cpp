@@ -2,11 +2,11 @@
 
 extern "C" {
     void STELLAR_ENTRY();
-    int doubleVal(int val);
+    int getValue(int);
 }
 
 int main() {
-//    STELLAR_ENTRY();
-    std::cout << "doubled: " << doubleVal(2) << std::endl;
+    STELLAR_ENTRY();
+    std::cout << "Value is " << getValue(5) << std::endl;
     return 0;
 }
