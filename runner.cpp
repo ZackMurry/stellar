@@ -2,7 +2,7 @@
 
 extern "C" {
     void STELLAR_ENTRY();
-    int getValue(int);
+    float getValue(int);
 }
 
 int main() {
