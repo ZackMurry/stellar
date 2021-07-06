@@ -110,6 +110,39 @@ struct Token readToken() {
         lexingIndex++;
         return token;
     }
+    if (ch == '<') {
+        token.type = TOKEN_PUNCTUATION;
+        lexingIndex++;
+        if (content.at(lexingIndex) == '=') {
+            lexingIndex++;
+            token.value = "<=";
+        } else {
+            token.value = "<";
+        }
+        return token;
+    }
+    if (ch == '>') {
+        token.type = TOKEN_PUNCTUATION;
+        lexingIndex++;
+        if (content.at(lexingIndex) == '=') {
+            lexingIndex++;
+            token.value = ">=";
+        } else {
+            token.value = ">";
+        }
+        return token;
+    }
+    if (ch == '!') {
+        token.type = TOKEN_PUNCTUATION;
+        lexingIndex++;
+        if (content.at(lexingIndex) == '=') {
+            lexingIndex++;
+            token.value = "!=";
+        } else {
+            token.value = "!";
+        }
+        return token;
+    }
 
     string word;
     while (lexingIndex < content.size() && isalnum(ch)) {
@@ -136,6 +169,16 @@ struct Token readToken() {
     }
     if (word == "x") {
         token.type = TOKEN_EXTERN;
+        token.value = "";
+        return token;
+    }
+    if (word == "if") {
+        token.type = TOKEN_IF;
+        token.value = "";
+        return token;
+    }
+    if (word == "else") {
+        token.type = TOKEN_ELSE;
         token.value = "";
         return token;
     }

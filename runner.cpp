@@ -2,11 +2,11 @@
 
 extern "C" {
     void STELLAR_ENTRY();
-    float getValue(int);
+    int getValue(int);
 }
 
 int main() {
     STELLAR_ENTRY();
-    std::cout << "Value is " << getValue(5) << std::endl;
+    std::cout << "Value is " << getValue(1) << std::endl;
     return 0;
 }

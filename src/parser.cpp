@@ -29,7 +29,7 @@ static llvm::Module* module;
 static map<string, llvm::Value*> namedValues;
 
 void printOutOfTokensError() {
-    cerr << "Error: expected token, but nothing found";
+    cerr << "Error: expected token, but nothing found at token " << parsingIndex << endl;
     exit(EXIT_FAILURE);
 }
 
@@ -37,7 +37,13 @@ enum ExpressionOperator {
     OPERATOR_PLUS,
     OPERATOR_MINUS,
     OPERATOR_TIMES,
-    OPERATOR_DIVIDE
+    OPERATOR_DIVIDE,
+    OPERATOR_LT,
+    OPERATOR_GT,
+    OPERATOR_LE,
+    OPERATOR_GE,
+    OPERATOR_EQ,
+    OPERATOR_NE
 };
 
 class ASTBinaryExpression : public ASTNode {
@@ -63,6 +69,51 @@ llvm::Value* ASTBinaryExpression::codegen() {
             return builder->CreateMul(l, r, "multmp");
         case OPERATOR_DIVIDE:
             cerr << "Parser: division is not implemented" << endl;
+            exit(EXIT_FAILURE);
+        case OPERATOR_LT:
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateICmpSLT(l, r, "cmptmp");
+            } else { // todo: other comparison types (float, double, etc)
+                cerr << "Error: unimplemented < operator between two non-integers" << endl;
+                exit(EXIT_FAILURE);
+            }
+        case OPERATOR_GT:
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateICmpSGT(l, r, "cmptmp");
+            } else {
+                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                exit(EXIT_FAILURE);
+            }
+        case OPERATOR_EQ:
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateICmpEQ(l, r, "cmptmp");
+            } else {
+                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                exit(EXIT_FAILURE);
+            }
+        case OPERATOR_LE:
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateICmpSLE(l, r, "cmptmp");
+            } else {
+                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                exit(EXIT_FAILURE);
+            }
+        case OPERATOR_GE:
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateICmpSGE(l, r, "cmptmp");
+            } else {
+                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                exit(EXIT_FAILURE);
+            }
+        case OPERATOR_NE:
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateICmpNE(l, r, "cmptmp");
+            } else {
+                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                exit(EXIT_FAILURE);
+            }
+        default:
+            cerr << "Error: unimplemented binary expression" << endl;
             exit(EXIT_FAILURE);
     }
 }
@@ -120,6 +171,7 @@ llvm::Value* ASTVariableDefinition::codegen() {
     llvm::Type* llvmType = getLLVMTypeByVariableType(type);
     builder->SetInsertPoint(currBlock);
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
+    namedValues[name] = alloca;
     return alloca;
 }
 
@@ -267,8 +319,11 @@ llvm::Value* ASTFunctionDefinition::codegen() {
     for (auto &node : body) {
         node->codegen();
     }
+    // If the final block is empty, add a return statement to it so that it is not empty
+    if (currBlock->empty()) {
+        builder->CreateRetVoid();
+    }
     currBlock = entryBlock;
-    cout << "Returned" << endl;
     llvm::verifyFunction(*func);
     return func;
 }
@@ -369,9 +424,6 @@ llvm::Type* getLLVMPtrTypeByType(llvm::Type* type) {
             return llvm::Type::getDoublePtrTy(*context);
         }
     }
-    if (type->isArrayTy()) {
-        cout << "type: array" << endl;
-    }
     cerr << "Error: unknown type" << endl;
     exit(EXIT_FAILURE);
 }
@@ -380,8 +432,6 @@ llvm::Value* ASTArrayAccess::codegen() {
     builder->SetInsertPoint(currBlock);
     auto* gep = builder->CreateInBoundsGEP(namedValues[name], index->codegen(), "acctmp");
     gep->getType()->isIntegerTy(32);
-//    cout << gep->getType()->print(cout) << endl;
-//    gep->mutateType(llvm::Type::getInt32PtrTy(*context));
     gep->mutateType(getLLVMPtrTypeByType(namedValues[name]->getType()->getPointerElementType()));
     return builder->CreateLoad(gep, "loadtmp");
 }
@@ -402,6 +452,58 @@ llvm::Value* ASTArrayIndexAssignment::codegen() {
     builder->SetInsertPoint(currBlock);
     llvm::Value* ref = builder->CreateInBoundsGEP(namedValues[name], llvm::ArrayRef<llvm::Value*>(index->codegen()), "acctmp");
     return builder->CreateStore(value->codegen(), ref);
+}
+
+// todo: logical and
+class ASTIfStatement : public ASTNode {
+    ASTBinaryExpression* condition;
+    vector<ASTNode*> ifBody;
+    vector<ASTNode*> elseBody;
+public:
+    ASTIfStatement(ASTBinaryExpression* condition, vector<ASTNode*> ifBody, vector<ASTNode*> elseBody) : condition(condition), ifBody(move(ifBody)), elseBody(move(elseBody)) {}
+    string toString() override {
+        string s = "[IF_STMT: condition: " + condition->toString() + " ifBody: ["; //+ ifBody->toString() + " elseBody: " + (elseBody ? elseBody ->toString() : "[none]") + "]";
+        for (auto const& stmt : ifBody) {
+            s += stmt->toString();
+        }
+        s += "] elseBody: [";
+        if (elseBody.empty()) {
+            for (auto const& stmt : ifBody) {
+                s += stmt->toString();
+            }
+        } else {
+            s += "none";
+        }
+        s += "]]";
+        return s;
+    }
+    llvm::Value* codegen() override;
+};
+
+llvm::Value* ASTIfStatement::codegen() {
+    llvm::Value* conditionValue = condition->codegen();
+    llvm::BasicBlock* ifBB = llvm::BasicBlock::Create(*context, "ifbody");
+    llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(*context, "elsebody");
+    llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeif");
+    builder->CreateCondBr(conditionValue, ifBB, elseBB);
+    currBlock->getParent()->getBasicBlockList().push_back(ifBB);
+    currBlock->getParent()->getBasicBlockList().push_back(elseBB);
+    currBlock->getParent()->getBasicBlockList().push_back(mergeBB);
+    builder->SetInsertPoint(ifBB);
+    currBlock = ifBB;
+    for (auto const& line : ifBody) {
+        line->codegen();
+    }
+    builder->CreateBr(mergeBB);
+    builder->SetInsertPoint(elseBB);
+    currBlock = elseBB;
+    for (auto const& line : elseBody) {
+        line->codegen();
+    }
+    builder->CreateBr(mergeBB);
+    currBlock = mergeBB;
+    builder->SetInsertPoint(mergeBB);
+    return mergeBB;
 }
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens);
@@ -434,7 +536,7 @@ ASTNode* parsePrimary(vector<Token> tokens) {
             if (tokens[parsingIndex].value == "(") {
                 return parseParenExpression(tokens);
             } else {
-                cerr << "Error: unknown token found when parsing expression" << endl;
+                cerr << "Error: unknown token found when parsing expression (" << tokens[parsingIndex].value << ")" << endl;
                 exit(EXIT_FAILURE);
             }
         default:
@@ -459,7 +561,6 @@ int getTokenPrecedence(const Token& token) {
     if (token.value == "/") {
         return 40;
     }
-    // todo other tokens
     return -1;
 }
 
@@ -483,7 +584,7 @@ ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
         } else if (tokens[parsingIndex].value == "/") {
             binOp = OPERATOR_DIVIDE;
         } else {
-            cerr << "Error: unknown binary operator (" << tokens[parsingIndex].value << endl;
+            cerr << "Error: unknown binary operator (" << tokens[parsingIndex].value << ")" << endl;
             exit(EXIT_FAILURE);
         }
         parsingIndex++;
@@ -525,6 +626,34 @@ int getVariableTypeFromToken(const Token& token) {
 }
 
 vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens);
+
+// Expects parsingIndex to be after '{'. Consumes ending brace
+vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
+    cout << "Getting body of block" << endl;
+    int stackSize = 0;
+    unsigned long end = parsingIndex;
+    vector<Token> bodyTokens;
+    while (stackSize > 0 || (tokens[end].type != TOKEN_PUNCTUATION || tokens[end].value != "}")) {
+        if (end + 1 >= tokens.size()) {
+            cout << "Out of tokens in block" << endl;
+            printOutOfTokensError();
+        }
+        if (tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "{") {
+            stackSize++;
+        } else if (tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
+            stackSize--;
+        }
+        end++;
+        if (stackSize == 0 && tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
+            break;
+        }
+        bodyTokens.push_back(tokens[end]);
+    }
+    cout << "Body token size: " << bodyTokens.size() << endl;
+    vector<ASTNode*> body = parseWithoutTokenizing(bodyTokens);
+    parsingIndex = end + 1;
+    return body;
+}
 
 // Expects the parsingIndex to be at an opening parenthesis
 ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const string& name) {
@@ -573,28 +702,8 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    int stackSize = 0;
-    unsigned long end = parsingIndex;
-    vector<Token> bodyTokens;
-    while (stackSize > 0 || (tokens[end].type != TOKEN_PUNCTUATION || tokens[end].value != "}")) {
-        if (end + 1 >= tokens.size()) {
-            printOutOfTokensError();
-        }
-        if (tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "{") {
-            stackSize++;
-        } else if (tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
-            stackSize--;
-        }
-        end++;
-        if (stackSize == 0 && tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
-            break;
-        }
-        bodyTokens.push_back(tokens[end]);
-    }
-    cout << "body token size: " << bodyTokens.size() << endl;
-    vector<ASTNode*> body = parseWithoutTokenizing(bodyTokens);
+    vector<ASTNode*> body = getBodyOfBlock(tokens);
     cout << "body size: " << body.size() << endl;
-    parsingIndex = end + 1;
     cout << "Arg size before creating: " << args.size() << endl;
     return new ASTFunctionDefinition(name, args, body, type);
 }
@@ -871,6 +980,98 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
     return new ASTExternDeclaration(name, args, (VariableType) returnType);
 }
 
+// Expects parsing index to be at "if"
+ASTNode* parseIfExpression(vector<Token> tokens) {
+    cout << "If expression" << endl;
+    // Consume "if"
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
+        cerr << "Error: expected '(' after if" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume "("
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    auto conditionLHS = parseExpression(tokens);
+
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION) {
+        cerr << "Error: expected comparison operator after expression in if condition" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    ExpressionOperator op;
+    if (tokens[parsingIndex].value == "<") {
+        op = OPERATOR_LT;
+    } else if (tokens[parsingIndex].value == ">") {
+        op = OPERATOR_GT;
+    } else if (tokens[parsingIndex].value == "==") {
+        op = OPERATOR_EQ;
+    } else if (tokens[parsingIndex].value == "<=") {
+        op = OPERATOR_LE;
+    } else if (tokens[parsingIndex].value == ">=") {
+        op = OPERATOR_GE;
+    } else if (tokens[parsingIndex].value == "!=") {
+        op = OPERATOR_NE;
+    } else {
+        cerr << "Error: expected comparison operator after expression in if condition" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume comparison
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    auto conditionRHS = parseExpression(tokens);
+
+    auto* condition = new ASTBinaryExpression(op, conditionLHS, conditionRHS);
+    cout << "Condition: " << condition->toString() << endl;
+
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+        cerr << "Error: expected ')' after if condition" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume ")"
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
+        cerr << "Error: expected '{' after if condition (single-line if statements without braces are not allowed)!" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume "{"
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    vector<ASTNode*> body = getBodyOfBlock(tokens);
+
+    if (parsingIndex >= tokens.size() || tokens[parsingIndex].type != TOKEN_ELSE) {
+        // Empty else body
+        return new ASTIfStatement(condition, body, vector<ASTNode*>());
+    }
+    cout << "Parsing else" << endl;
+    // Consume "else"
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    // todo else if
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
+        cerr << "Error: expected '{' after else (single-line else blocks without braces are not allowed)!" << endl;
+        exit(EXIT_FAILURE);
+    }
+    // Consume "{"
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    cout << "parsing index when getting else body: " << parsingIndex << endl;
+    vector<ASTNode*> elseBody = getBodyOfBlock(tokens);
+    cout << "Else body: " << elseBody[0]->toString() << endl;
+    cout << "Made it to the end of if parsing" << endl;
+    return new ASTIfStatement(condition, body, elseBody);
+}
+
 void initializeModule() {
     context = new llvm::LLVMContext();
     module = new llvm::Module("module", *context);
@@ -890,6 +1091,8 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
             nodes.push_back(parseReturnExpression(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_EXTERN) {
             nodes.push_back(parseExternExpression(tokens));
+        } else if (tokens[parsingIndex].type == TOKEN_IF) {
+            nodes.push_back(parseIfExpression(tokens));
         } else {
             cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
             parsingIndex++;
