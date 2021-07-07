@@ -161,6 +161,12 @@ llvm::Type* getLLVMTypeByVariableType(VariableType type) {
         return llvm::Type::getInt32Ty(*context);
     } else if (type == VARIABLE_TYPE_V) {
         return llvm::Type::getVoidTy(*context);
+    } else if (type == VARIABLE_TYPE_I8) {
+        return llvm::Type::getInt8Ty(*context);
+    } else if (type == VARIABLE_TYPE_I16) {
+        return llvm::Type::getInt16Ty(*context);
+    } else if (type == VARIABLE_TYPE_I64) {
+        return llvm::Type::getInt64Ty(*context);
     } else {
         cerr << "Parser: unimplemented type " << type << endl;
         exit(EXIT_FAILURE);
@@ -239,18 +245,35 @@ llvm::Value* ASTVariableExpression::codegen() {
 }
 
 class ASTNumberExpression : public ASTNode {
-    int val;
+    string val;
+    VariableType type;
 public:
-    explicit ASTNumberExpression(int val) : val(val) {}
+    ASTNumberExpression(string val, VariableType type) : val(move(val)), type(type) {}
     string toString() override {
-        return "[NUM_EXP: " + to_string(val) + "]";
+        return "[NUM_EXP: " + val + " type: " + to_string(type) + "]";
     }
     llvm::Value *codegen() override;
 };
 
 llvm::Value* ASTNumberExpression::codegen() {
-    // todo i vs f inference on number literals
-    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), val, true);
+    cout << "Number expression codegen" << endl;
+    if (type == VARIABLE_TYPE_I32) {
+        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), val, 10);
+    } else if (type == VARIABLE_TYPE_F) {
+        return llvm::ConstantFP::get(llvm::Type::getFloatTy(*context), val);
+    } else if (type == VARIABLE_TYPE_D) {
+        return llvm::ConstantFP::get(llvm::Type::getDoubleTy(*context), val);
+    } else if (type == VARIABLE_TYPE_I8) {
+        return llvm::ConstantInt::get(llvm::Type::getInt8Ty(*context), val, 10);
+    } else if (type == VARIABLE_TYPE_I16) {
+        cout << "i16 type" << endl;
+        return llvm::ConstantInt::get(llvm::Type::getInt16Ty(*context), val, 10);
+    } else if (type == VARIABLE_TYPE_I64) {
+        return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), val, 10);
+    } else {
+        cerr << "Error: unimplemented number type " << type << endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 class ASTFunctionDefinition : public ASTNode {
@@ -319,11 +342,13 @@ llvm::Value* ASTFunctionDefinition::codegen() {
     for (auto &node : body) {
         node->codegen();
     }
+    cout << "For loops done" << endl;
     // If the final block is empty, add a return statement to it so that it is not empty
     if (currBlock->empty()) {
         builder->CreateRetVoid();
     }
     currBlock = entryBlock;
+    builder->SetInsertPoint(currBlock);
     llvm::verifyFunction(*func);
     return func;
 }
@@ -467,7 +492,7 @@ public:
             s += stmt->toString();
         }
         s += "] elseBody: [";
-        if (elseBody.empty()) {
+        if (!elseBody.empty()) {
             for (auto const& stmt : ifBody) {
                 s += stmt->toString();
             }
@@ -490,6 +515,7 @@ llvm::Value* ASTIfStatement::codegen() {
     currBlock->getParent()->getBasicBlockList().push_back(elseBB);
     currBlock->getParent()->getBasicBlockList().push_back(mergeBB);
     builder->SetInsertPoint(ifBB);
+    auto oldBlock = currBlock;
     currBlock = ifBB;
     for (auto const& line : ifBody) {
         line->codegen();
@@ -502,6 +528,9 @@ llvm::Value* ASTIfStatement::codegen() {
     }
     builder->CreateBr(mergeBB);
     currBlock = mergeBB;
+    if (oldBlock == entryBlock) {
+        entryBlock = mergeBB;
+    }
     builder->SetInsertPoint(mergeBB);
     return mergeBB;
 }
@@ -511,8 +540,53 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens);
 ASTNode* parseExpression(const vector<Token>& tokens);
 
 ASTNode* parseNumberExpression(vector<Token> tokens) {
-    int val = stoi(tokens[parsingIndex++].value);
-    return new ASTNumberExpression(val);
+    string val = tokens[parsingIndex++].value;
+    VariableType type = VARIABLE_TYPE_I32;
+    int numDigits = 0;
+    for (int i = 0; i < val.size(); i++) {
+        cout << "i: " << i << endl;
+        if (val.at(i) == '.') {
+            if (type == VARIABLE_TYPE_F) {
+                cerr << "Error: expected a maximum of one decimal to occur in a number" << endl;
+                exit(EXIT_FAILURE);
+            }
+            type = VARIABLE_TYPE_F;
+        } else if (!isdigit(val.at(i))) {
+            numDigits = i;
+            break;
+        }
+    }
+    if (numDigits == 0) {
+        cerr << "Error: expected number to start with at least one digit" << endl;
+        exit(EXIT_FAILURE);
+    }
+    string numericPart = val.substr(0, numDigits);
+    string typePart = val.substr(numDigits);
+    if (!typePart.empty()) {
+        if (typePart == "f") {
+            cout << "Number is an explicit float type" << endl;
+            type = VARIABLE_TYPE_F;
+        } else if (typePart == "d") {
+            cout << "Number is an explicit double type" << endl;
+            type = VARIABLE_TYPE_D;
+        } else if (typePart == "i32") {
+            cout << "Number is an explicit i32 type" << endl;
+            type = VARIABLE_TYPE_I32;
+        } else if (typePart == "i64") {
+            cout << "Number is an explicit i64 type" << endl;
+            type = VARIABLE_TYPE_I64;
+        } else if (typePart == "i16") {
+            cout << "Number is an explicit i16 type" << endl;
+            type = VARIABLE_TYPE_I16;
+        } else if (typePart == "i8") {
+            cout << "Number is an explicit i8 type" << endl;
+            type = VARIABLE_TYPE_I8;
+        } else {
+            cerr << "Error: unknown explicit variable type suffix " << typePart << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+    return new ASTNumberExpression(numericPart, type);
 }
 
 ASTNode* parseParenExpression(vector<Token> tokens) {
@@ -618,6 +692,12 @@ int getVariableTypeFromToken(const Token& token) {
         return VARIABLE_TYPE_D;
     } else if (token.value == "b") {
         return VARIABLE_TYPE_B;
+    } else if (token.value == "i8") {
+        return VARIABLE_TYPE_I8;
+    } else if (token.value == "i16") {
+        return VARIABLE_TYPE_I16;
+    } else if (token.value == "i64") {
+        return VARIABLE_TYPE_I64;
     } else if (token.value == "v") {
         return VARIABLE_TYPE_V;
     } else {

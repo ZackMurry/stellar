@@ -13,9 +13,8 @@ using namespace std;
 unsigned long lexingIndex = 0;
 string content;
 
-bool isNumeric(string s) {
+bool isNumeric(const string& s) {
     // todo negative numbers without messing up '-'
-    // todo decimals
     for (char i : s) {
         if (!isdigit(i)) {
             return false;
@@ -143,8 +142,34 @@ struct Token readToken() {
         }
         return token;
     }
-
     string word;
+    if (isdigit(content.at(lexingIndex))) {
+        token.type = TOKEN_NUMBER;
+        while (lexingIndex < content.size() && isdigit(ch)) {
+            word += (char) ch;
+            if (++lexingIndex >= content.size()) {
+                break;
+            }
+            ch = content.at(lexingIndex);
+        }
+        token.value = word;
+        if (content.at(lexingIndex) == '.') {
+            token.value += '.';
+            while (isdigit(content.at(++lexingIndex))) {
+                token.value += content.at(lexingIndex);
+            }
+        }
+        if (content.at(lexingIndex) == 'f' || content.at(lexingIndex) == 'd') {
+            token.value += content.at(lexingIndex++);
+        } else if (content.at(lexingIndex) == 'i') {
+            token.value += content.at(lexingIndex++);
+            while (isdigit(content.at(lexingIndex))) {
+                token.value += content.at(lexingIndex++);
+            }
+        }
+        return token;
+    }
+
     while (lexingIndex < content.size() && isalnum(ch)) {
         word += (char) ch;
         if (++lexingIndex >= content.size()) {
@@ -182,11 +207,6 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
-    if (isNumeric(word) && !word.empty()) {
-        token.type = TOKEN_NUMBER;
-        token.value = word;
-        return token;
-    }
     token.type = TOKEN_IDENTIFIER;
     token.value = word;
     return token;
@@ -198,10 +218,11 @@ vector<Token> tokenize(string data) {
     vector<Token> tokens;
     while (lexingIndex < content.size()) {
         struct Token t = readToken();
-        cout << t.type << ":" << t.value << endl;
+        cout << t.type << ":" << t.value << "@" << lexingIndex << endl;
         tokens.push_back(t);
         if (lexingIndex < content.size() && content.at(lexingIndex) == '\n') {
             tokens.push_back({ TOKEN_NEWLINE, "" });
+            cout << TOKEN_NEWLINE << ":" << "@" << lexingIndex << endl;
             lexingIndex++;
         }
         while (lexingIndex < content.size() && (content.at(lexingIndex) == ' ' || content.at(lexingIndex) == '\n' || content.at(lexingIndex) == '\t')) {
