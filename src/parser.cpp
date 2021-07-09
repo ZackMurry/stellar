@@ -73,43 +73,55 @@ llvm::Value* ASTBinaryExpression::codegen() {
         case OPERATOR_LT:
             if (l->getType()->isIntegerTy()) {
                 return builder->CreateICmpSLT(l, r, "cmptmp");
-            } else { // todo: other comparison types (float, double, etc)
-                cerr << "Error: unimplemented < operator between two non-integers" << endl;
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFCmpOLT(l, r, "cmptmp");
+            } else {
+                cerr << "Error: unimplemented < operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_GT:
             if (l->getType()->isIntegerTy()) {
                 return builder->CreateICmpSGT(l, r, "cmptmp");
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFCmpOGT(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                cerr << "Error: unimplemented > operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_EQ:
             if (l->getType()->isIntegerTy()) {
                 return builder->CreateICmpEQ(l, r, "cmptmp");
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFCmpOEQ(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                cerr << "Error: unimplemented > operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_LE:
             if (l->getType()->isIntegerTy()) {
                 return builder->CreateICmpSLE(l, r, "cmptmp");
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFCmpOLE(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                cerr << "Error: unimplemented > operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_GE:
             if (l->getType()->isIntegerTy()) {
                 return builder->CreateICmpSGE(l, r, "cmptmp");
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFCmpOGE(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                cerr << "Error: unimplemented > operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_NE:
             if (l->getType()->isIntegerTy()) {
                 return builder->CreateICmpNE(l, r, "cmptmp");
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFCmpONE(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator between two non-integers" << endl;
+                cerr << "Error: unimplemented > operator" << endl;
                 exit(EXIT_FAILURE);
             }
         default:
@@ -542,7 +554,7 @@ ASTNode* parseExpression(const vector<Token>& tokens);
 ASTNode* parseNumberExpression(vector<Token> tokens) {
     string val = tokens[parsingIndex++].value;
     VariableType type = VARIABLE_TYPE_I32;
-    int numDigits = 0;
+    int lastDigitIndex = -1;
     for (int i = 0; i < val.size(); i++) {
         cout << "i: " << i << endl;
         if (val.at(i) == '.') {
@@ -551,17 +563,21 @@ ASTNode* parseNumberExpression(vector<Token> tokens) {
                 exit(EXIT_FAILURE);
             }
             type = VARIABLE_TYPE_F;
+            lastDigitIndex = i;
         } else if (!isdigit(val.at(i))) {
-            numDigits = i;
+            lastDigitIndex = i - 1;
             break;
+        } else {
+            lastDigitIndex = i;
         }
     }
-    if (numDigits == 0) {
-        cerr << "Error: expected number to start with at least one digit" << endl;
+    if (lastDigitIndex == -1) {
+        cerr << "Error: expected number to start with at least one digit (number was " << val << ")" << endl;
         exit(EXIT_FAILURE);
     }
-    string numericPart = val.substr(0, numDigits);
-    string typePart = val.substr(numDigits);
+    string numericPart = val.substr(0, lastDigitIndex + 1);
+    string typePart = val.substr(lastDigitIndex + 1);
+    cout << "Numeric part: " << numericPart << "; type part: " << typePart << endl;
     if (!typePart.empty()) {
         if (typePart == "f") {
             cout << "Number is an explicit float type" << endl;
