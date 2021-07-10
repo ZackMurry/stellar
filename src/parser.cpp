@@ -17,154 +17,34 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Verifier.h"
+
+#include "include/ASTArrayAccess.h"
+#include "include/ASTArrayDefinition.h"
+#include "include/ASTArrayIndexAssignment.h"
+#include "include/ASTBinaryExpression.h"
+#include "include/ASTExternDeclaration.h"
+#include "include/ASTFunctionDefinition.h"
+#include "include/ASTFunctionInvocation.h"
+#include "include/ASTIfStatement.h"
+#include "include/ASTNumberExpression.h"
+#include "include/ASTReturn.h"
+#include "include/ASTVariableAssignment.h"
+#include "include/ASTVariableDeclaration.h"
+#include "include/ASTVariableDefinition.h"
+#include "include/ASTVariableExpression.h"
 
 using namespace std;
 
-unsigned long parsingIndex = 0;
+// todo: boolean literals (true, false)
 
-static llvm::LLVMContext* context;
-static llvm::IRBuilder<>* builder;
-static llvm::Module* module;
-static map<string, llvm::Value*> namedValues;
+unsigned long parsingIndex = 0;
 
 void printOutOfTokensError() {
     cerr << "Error: expected token, but nothing found at token " << parsingIndex << endl;
     exit(EXIT_FAILURE);
 }
 
-enum ExpressionOperator {
-    OPERATOR_PLUS,
-    OPERATOR_MINUS,
-    OPERATOR_TIMES,
-    OPERATOR_DIVIDE,
-    OPERATOR_LT,
-    OPERATOR_GT,
-    OPERATOR_LE,
-    OPERATOR_GE,
-    OPERATOR_EQ,
-    OPERATOR_NE
-};
-
-class ASTBinaryExpression : public ASTNode {
-    ExpressionOperator op;
-    ASTNode *lhs, *rhs;
-public:
-    ASTBinaryExpression(ExpressionOperator op, ASTNode* lhs, ASTNode* rhs) : op(op), lhs(lhs), rhs(rhs) {}
-    string toString() override {
-        return "[BIN_EXPRESSION: " + to_string(op) + " " + lhs->toString() + " " + rhs->toString() + "]";
-    }
-    llvm::Value *codegen() override;
-};
-
-llvm::Value* ASTBinaryExpression::codegen() {
-    llvm::Value* l = lhs->codegen();
-    llvm::Value* r = rhs->codegen();
-    switch (op) {
-        case OPERATOR_PLUS:
-            return builder->CreateAdd(l, r, "addtmp");
-        case OPERATOR_MINUS:
-            return builder->CreateSub(l, r, "subtmp");
-        case OPERATOR_TIMES:
-            return builder->CreateMul(l, r, "multmp");
-        case OPERATOR_DIVIDE:
-            cerr << "Parser: division is not implemented" << endl;
-            exit(EXIT_FAILURE);
-        case OPERATOR_LT:
-            if (l->getType()->isIntegerTy()) {
-                return builder->CreateICmpSLT(l, r, "cmptmp");
-            } else if (l->getType()->isFloatingPointTy()) {
-                return builder->CreateFCmpOLT(l, r, "cmptmp");
-            } else {
-                cerr << "Error: unimplemented < operator" << endl;
-                exit(EXIT_FAILURE);
-            }
-        case OPERATOR_GT:
-            if (l->getType()->isIntegerTy()) {
-                return builder->CreateICmpSGT(l, r, "cmptmp");
-            } else if (l->getType()->isFloatingPointTy()) {
-                return builder->CreateFCmpOGT(l, r, "cmptmp");
-            } else {
-                cerr << "Error: unimplemented > operator" << endl;
-                exit(EXIT_FAILURE);
-            }
-        case OPERATOR_EQ:
-            if (l->getType()->isIntegerTy()) {
-                return builder->CreateICmpEQ(l, r, "cmptmp");
-            } else if (l->getType()->isFloatingPointTy()) {
-                return builder->CreateFCmpOEQ(l, r, "cmptmp");
-            } else {
-                cerr << "Error: unimplemented > operator" << endl;
-                exit(EXIT_FAILURE);
-            }
-        case OPERATOR_LE:
-            if (l->getType()->isIntegerTy()) {
-                return builder->CreateICmpSLE(l, r, "cmptmp");
-            } else if (l->getType()->isFloatingPointTy()) {
-                return builder->CreateFCmpOLE(l, r, "cmptmp");
-            } else {
-                cerr << "Error: unimplemented > operator" << endl;
-                exit(EXIT_FAILURE);
-            }
-        case OPERATOR_GE:
-            if (l->getType()->isIntegerTy()) {
-                return builder->CreateICmpSGE(l, r, "cmptmp");
-            } else if (l->getType()->isFloatingPointTy()) {
-                return builder->CreateFCmpOGE(l, r, "cmptmp");
-            } else {
-                cerr << "Error: unimplemented > operator" << endl;
-                exit(EXIT_FAILURE);
-            }
-        case OPERATOR_NE:
-            if (l->getType()->isIntegerTy()) {
-                return builder->CreateICmpNE(l, r, "cmptmp");
-            } else if (l->getType()->isFloatingPointTy()) {
-                return builder->CreateFCmpONE(l, r, "cmptmp");
-            } else {
-                cerr << "Error: unimplemented > operator" << endl;
-                exit(EXIT_FAILURE);
-            }
-        default:
-            cerr << "Error: unimplemented binary expression" << endl;
-            exit(EXIT_FAILURE);
-    }
-}
-
-enum VariableType {
-    VARIABLE_TYPE_I8,
-    VARIABLE_TYPE_I16,
-    VARIABLE_TYPE_I32,
-    VARIABLE_TYPE_I64,
-    VARIABLE_TYPE_F,
-    VARIABLE_TYPE_D,
-    VARIABLE_TYPE_B,
-    VARIABLE_TYPE_V,
-};
-
-class ASTVariableDefinition : public ASTNode {
-    string name;
-    VariableType type;
-public:
-    ASTVariableDefinition(string name, VariableType type) : name(move(name)), type(type) {}
-    string toString() override {
-        return "[VAR_DEF: " + name + " " + to_string(type) + "]";
-    }
-    llvm::Value *codegen() override;
-    VariableType getType() { return type; };
-    string getName() { return name; };
-};
-
-static llvm::BasicBlock* entryBlock;
-static llvm::BasicBlock* currBlock;
-
-void createEntryFunction() {
-    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
-    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "STELLAR_ENTRY", *module);
-    entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
-    currBlock = entryBlock;
-}
-
-llvm::Type* getLLVMTypeByVariableType(VariableType type) {
+llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* context) {
     if (type == VARIABLE_TYPE_F) {
         return llvm::Type::getFloatTy(*context);
     } else if (type == VARIABLE_TYPE_D) {
@@ -180,371 +60,9 @@ llvm::Type* getLLVMTypeByVariableType(VariableType type) {
     } else if (type == VARIABLE_TYPE_I64) {
         return llvm::Type::getInt64Ty(*context);
     } else {
-        cerr << "Parser: unimplemented type " << type << endl;
+        std::cerr << "Parser: unimplemented type " << type << std::endl;
         exit(EXIT_FAILURE);
     }
-}
-
-llvm::Value* ASTVariableDefinition::codegen() {
-    llvm::Type* llvmType = getLLVMTypeByVariableType(type);
-    builder->SetInsertPoint(currBlock);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
-    namedValues[name] = alloca;
-    return alloca;
-}
-
-class ASTVariableDeclaration : public ASTNode {
-    string name;
-    VariableType type;
-    ASTNode* value;
-public:
-    ASTVariableDeclaration(string name, VariableType type, ASTNode* value) : name(move(name)), type(type), value(value) {}
-    string toString() override {
-        return "[VAR_DECL: " + name + " " + to_string(type) + " " + value->toString() + "]";
-    }
-    llvm::Value *codegen() override;
-};
-
-llvm::Value* ASTVariableDeclaration::codegen() {
-    llvm::Type* llvmType = getLLVMTypeByVariableType(type);
-    builder->SetInsertPoint(currBlock);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
-    builder->CreateStore(value->codegen(), alloca);
-    namedValues[name] = alloca;
-    return alloca;
-}
-
-class ASTVariableAssignment : public ASTNode {
-    string name;
-    ASTNode* value;
-public:
-    ASTVariableAssignment(string name, ASTNode* value) : name(move(name)), value(value) {};
-    string toString() override {
-        return "[VAR_ASSIGN: " + name + " " + value->toString() + "]";
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTVariableAssignment::codegen() {
-    cout << "Getting named val" << endl;
-    cout << "named val: " << namedValues[name]->getName().str() << endl;
-    llvm::Value* var = namedValues[name];
-    if (!var) { // todo: this can't detect use of variables declared in a function outside of the function
-        cerr << "Error: illegal use of undeclared variable '" << name << "'" << endl;
-        exit(EXIT_FAILURE);
-    }
-    builder->CreateStore(value->codegen(), var);
-    return var;
-}
-
-class ASTVariableExpression : public ASTNode {
-    string name;
-public:
-    explicit ASTVariableExpression(string name) : name(move(name)) {}
-    string toString() override {
-        return "[VAR_EXP: " + name + "]";
-    }
-    llvm::Value *codegen() override;
-};
-
-llvm::Value* ASTVariableExpression::codegen() {
-    llvm::Value* v = namedValues.at(name);
-    if (!v) {
-        cerr << "Parser: undeclared variable " << name << endl;
-        exit(EXIT_FAILURE);
-    }
-    return builder->CreateLoad(v, name.c_str());
-}
-
-class ASTNumberExpression : public ASTNode {
-    string val;
-    VariableType type;
-public:
-    ASTNumberExpression(string val, VariableType type) : val(move(val)), type(type) {}
-    string toString() override {
-        return "[NUM_EXP: " + val + " type: " + to_string(type) + "]";
-    }
-    llvm::Value *codegen() override;
-};
-
-llvm::Value* ASTNumberExpression::codegen() {
-    cout << "Number expression codegen" << endl;
-    if (type == VARIABLE_TYPE_I32) {
-        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), val, 10);
-    } else if (type == VARIABLE_TYPE_F) {
-        return llvm::ConstantFP::get(llvm::Type::getFloatTy(*context), val);
-    } else if (type == VARIABLE_TYPE_D) {
-        return llvm::ConstantFP::get(llvm::Type::getDoubleTy(*context), val);
-    } else if (type == VARIABLE_TYPE_I8) {
-        return llvm::ConstantInt::get(llvm::Type::getInt8Ty(*context), val, 10);
-    } else if (type == VARIABLE_TYPE_I16) {
-        cout << "i16 type" << endl;
-        return llvm::ConstantInt::get(llvm::Type::getInt16Ty(*context), val, 10);
-    } else if (type == VARIABLE_TYPE_I64) {
-        return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), val, 10);
-    } else {
-        cerr << "Error: unimplemented number type " << type << endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
-class ASTFunctionDefinition : public ASTNode {
-    string name;
-    vector<ASTVariableDefinition*> args;
-    vector<ASTNode*> body;
-    VariableType returnType;
-public:
-    ASTFunctionDefinition(string name, vector<ASTVariableDefinition*> args, vector<ASTNode*> body, VariableType returnType) : name(move(name)), args(move(args)), body(move(body)), returnType(returnType) {}
-    string toString() override {
-        string s = "[FUN_DEF: " + name + " args: [";
-        for (const auto& arg : args) {
-            s += arg->toString();
-        }
-        s += "] body: [";
-        for (const auto& line : body) {
-            s += line->toString();
-        }
-        s += "] ]";
-        return s;
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTFunctionDefinition::codegen() {
-    cout << "FuncDef codegen" << endl;
-    llvm::Function* func = module->getFunction(name);
-    if (func && !func->empty()) {
-        cerr << "Error: function " << name << " cannot be redefined" << endl;
-        exit(EXIT_FAILURE);
-    }
-    vector<llvm::Type*> argTypes;
-    if (!func) {
-        for (const auto& arg : args) {
-            llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType());
-            if (llvmType == nullptr) {
-                cerr << "Error mapping variable type to LLVM type" << endl;
-                exit(EXIT_FAILURE);
-            }
-            argTypes.push_back(llvmType);
-        }
-        llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType), argTypes, false);
-        func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
-        unsigned index = 0;
-        for (auto &arg : func->args()) {
-            arg.setName(args[index++]->getName());
-        }
-    } else {
-        // Get arg types
-        for (const auto& arg : func->args()) {
-            argTypes.push_back(arg.getType());
-        }
-    }
-    llvm::BasicBlock* bb = llvm::BasicBlock::Create(*context, "entry", func);
-    cout << "Created basic block" << endl;
-    builder->SetInsertPoint(bb);
-    namedValues.clear();
-    unsigned index = 0;
-    for (auto &arg : func->args()) {
-        llvm::IRBuilder<> tempBuilder(&func->getEntryBlock(), func->getEntryBlock().begin());
-        llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
-        builder->CreateStore(&arg, alloca);
-        namedValues[string(arg.getName())] = alloca;
-    }
-    currBlock = bb;
-    for (auto &node : body) {
-        node->codegen();
-    }
-    cout << "For loops done" << endl;
-    // If the final block is empty, add a return statement to it so that it is not empty
-    if (currBlock->empty()) {
-        builder->CreateRetVoid();
-    }
-    currBlock = entryBlock;
-    builder->SetInsertPoint(currBlock);
-    llvm::verifyFunction(*func);
-    return func;
-}
-
-class ASTFunctionInvocation : public ASTNode {
-    string name;
-    vector<ASTNode*> args;
-public:
-    ASTFunctionInvocation(string name, vector<ASTNode*> args) : name(move(name)), args(move(args)) {}
-    string toString() override {
-        string s = "[FUN_INV: " + name + " args: [";
-        for (auto const& arg : args) {
-            s += arg->toString();
-        }
-        s += "]]";
-        return s;
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTFunctionInvocation::codegen() {
-    llvm::Function* calleeFunc = module->getFunction(name);
-    if (!calleeFunc) {
-        cerr << "Error: unknown function reference" << endl;
-        exit(EXIT_FAILURE);
-    }
-    if (calleeFunc->arg_size() != args.size()) {
-        cerr << "Error: incorrect number of arguments passed to function " << name << endl;
-        exit(EXIT_FAILURE);
-    }
-    vector<llvm::Value*> argsV;
-    for (auto & arg : args) {
-        argsV.push_back(arg->codegen());
-    }
-    builder->SetInsertPoint(currBlock);
-    return builder->CreateCall(calleeFunc, argsV, "calltmp");
-}
-
-class ASTArrayDefinition : public ASTNode {
-    string name;
-    VariableType elementType;
-    ASTNode* length;
-public:
-    ASTArrayDefinition(string name, VariableType elementType, ASTNode* length) : name(move(name)), elementType(elementType), length(length) {}
-    string toString() override {
-        return "[ARR_DEF: " + name + " " + to_string(elementType) + " size: " + length->toString() + "]";
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTArrayDefinition::codegen() {
-    llvm::Type* llvmElType = getLLVMTypeByVariableType(elementType);
-    builder->SetInsertPoint(currBlock);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmElType, length->codegen(), name);
-    namedValues[name] = alloca;
-    return alloca;
-}
-
-class ASTArrayAccess : public ASTNode {
-    string name;
-    ASTNode* index;
-public:
-    ASTArrayAccess(string name, ASTNode* index) : name(move(name)), index(index) {}
-    string toString() override {
-        return "[ARR_ACCESS: " + name + " at " + index->toString() + "]";
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Type* getLLVMPtrTypeByType(llvm::Type* type) {
-    if (type->isIntegerTy()) {
-        if (type->isIntegerTy(8)) {
-            cout << "type: i8" << endl;
-            return llvm::Type::getInt8PtrTy(*context);
-        }
-        if (type->isIntegerTy(16)) {
-            cout << "type: i16" << endl;
-            return llvm::Type::getInt16PtrTy(*context);
-        }
-        if (type->isIntegerTy(32)) {
-            cout << "type: i32" << endl;
-            return llvm::Type::getInt32PtrTy(*context);
-        }
-        if (type->isIntegerTy(64)) {
-            cout << "type: i64" << endl;
-            return llvm::Type::getInt64PtrTy(*context);
-        }
-        cerr << "Error: unknown integer type" << endl;
-        exit(EXIT_FAILURE);
-    }
-    if (type->isFloatingPointTy()) {
-        if (type->isFloatTy()) {
-            cout << "type: f" << endl;
-            return llvm::Type::getFloatPtrTy(*context);
-        }
-        if (type->isDoubleTy()) {
-            cout << "type; d" << endl;
-            return llvm::Type::getDoublePtrTy(*context);
-        }
-    }
-    cerr << "Error: unknown type" << endl;
-    exit(EXIT_FAILURE);
-}
-
-llvm::Value* ASTArrayAccess::codegen() {
-    builder->SetInsertPoint(currBlock);
-    auto* gep = builder->CreateInBoundsGEP(namedValues[name], index->codegen(), "acctmp");
-    gep->getType()->isIntegerTy(32);
-    gep->mutateType(getLLVMPtrTypeByType(namedValues[name]->getType()->getPointerElementType()));
-    return builder->CreateLoad(gep, "loadtmp");
-}
-
-class ASTArrayIndexAssignment : public ASTNode {
-    string name;
-    ASTNode* index;
-    ASTNode* value;
-public:
-    ASTArrayIndexAssignment(string name, ASTNode* index, ASTNode* value) : name(move(name)), index(index), value(value) {}
-    string toString() override {
-        return "[ARR_ASSIGN: " + name + " at " + index->toString() + " to " + value->toString() + "]";
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTArrayIndexAssignment::codegen() {
-    builder->SetInsertPoint(currBlock);
-    llvm::Value* ref = builder->CreateInBoundsGEP(namedValues[name], llvm::ArrayRef<llvm::Value*>(index->codegen()), "acctmp");
-    return builder->CreateStore(value->codegen(), ref);
-}
-
-// todo: logical and
-class ASTIfStatement : public ASTNode {
-    ASTBinaryExpression* condition;
-    vector<ASTNode*> ifBody;
-    vector<ASTNode*> elseBody;
-public:
-    ASTIfStatement(ASTBinaryExpression* condition, vector<ASTNode*> ifBody, vector<ASTNode*> elseBody) : condition(condition), ifBody(move(ifBody)), elseBody(move(elseBody)) {}
-    string toString() override {
-        string s = "[IF_STMT: condition: " + condition->toString() + " ifBody: ["; //+ ifBody->toString() + " elseBody: " + (elseBody ? elseBody ->toString() : "[none]") + "]";
-        for (auto const& stmt : ifBody) {
-            s += stmt->toString();
-        }
-        s += "] elseBody: [";
-        if (!elseBody.empty()) {
-            for (auto const& stmt : ifBody) {
-                s += stmt->toString();
-            }
-        } else {
-            s += "none";
-        }
-        s += "]]";
-        return s;
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTIfStatement::codegen() {
-    llvm::Value* conditionValue = condition->codegen();
-    llvm::BasicBlock* ifBB = llvm::BasicBlock::Create(*context, "ifbody");
-    llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(*context, "elsebody");
-    llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeif");
-    builder->CreateCondBr(conditionValue, ifBB, elseBB);
-    currBlock->getParent()->getBasicBlockList().push_back(ifBB);
-    currBlock->getParent()->getBasicBlockList().push_back(elseBB);
-    currBlock->getParent()->getBasicBlockList().push_back(mergeBB);
-    builder->SetInsertPoint(ifBB);
-    auto oldBlock = currBlock;
-    currBlock = ifBB;
-    for (auto const& line : ifBody) {
-        line->codegen();
-    }
-    builder->CreateBr(mergeBB);
-    builder->SetInsertPoint(elseBB);
-    currBlock = elseBB;
-    for (auto const& line : elseBody) {
-        line->codegen();
-    }
-    builder->CreateBr(mergeBB);
-    currBlock = mergeBB;
-    if (oldBlock == entryBlock) {
-        entryBlock = mergeBB;
-    }
-    builder->SetInsertPoint(mergeBB);
-    return mergeBB;
 }
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens);
@@ -944,28 +462,6 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     return new ASTFunctionInvocation(identifier, args);
 }
 
-class ASTReturn : public ASTNode {
-    ASTNode* exp;
-public:
-    explicit ASTReturn(ASTNode* exp) : exp(exp) {}
-    string toString() override {
-        if (!exp) {
-            return "[RETURN: void]";
-        }
-        return "[RETURN: " + exp->toString() + "]";
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTReturn::codegen() {
-    if (exp) {
-        llvm::Value* val = exp->codegen();
-        return builder->CreateRet(val);
-    } else { // Void
-        return builder->CreateRetVoid();
-    }
-}
-
 ASTNode* parseReturnExpression(vector<Token> tokens) {
     // Consume 'r'
     if (++parsingIndex >= tokens.size()) {
@@ -975,42 +471,6 @@ ASTNode* parseReturnExpression(vector<Token> tokens) {
         return new ASTReturn(nullptr);
     }
     return new ASTReturn(parseExpression(tokens));
-}
-
-class ASTExternDeclaration : public ASTNode {
-    string name;
-    vector<ASTVariableDefinition*> args;
-    VariableType returnType;
-public:
-    ASTExternDeclaration(string name, vector<ASTVariableDefinition*> args, VariableType returnType) : name(move(name)), args(move(args)), returnType(returnType) {}
-    string toString() override {
-        string s = "[EXTERN: " + to_string(returnType) + " " + name + " args: [";
-        for (const auto& arg : args) {
-            s += arg->toString();
-        }
-        s += "]]";
-        return s;
-    }
-    llvm::Value* codegen() override;
-};
-
-llvm::Value* ASTExternDeclaration::codegen() {
-    vector<llvm::Type*> argTypes;
-    for (const auto& arg : args) {
-        llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType());
-        if (llvmType == nullptr) {
-            cerr << "Error mapping variable type to LLVM type" << endl;
-            exit(EXIT_FAILURE);
-        }
-        argTypes.push_back(llvmType);
-    }
-    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType), argTypes, false);
-    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
-    unsigned index = 0;
-    for (auto &arg : func->args()) {
-        arg.setName(args[index++]->getName());
-    }
-    return func;
 }
 
 ASTNode* parseExternExpression(vector<Token> tokens) {
@@ -1168,13 +628,6 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     return new ASTIfStatement(condition, body, elseBody);
 }
 
-void initializeModule() {
-    context = new llvm::LLVMContext();
-    module = new llvm::Module("module", *context);
-    builder = new llvm::IRBuilder<>(*context);
-    createEntryFunction();
-}
-
 vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
     parsingIndex = 0;
     vector<ASTNode*> nodes;
@@ -1200,11 +653,18 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
 
 vector<ASTNode*> parse(vector<Token> tokens) {
     vector<ASTNode*> nodes = parseWithoutTokenizing(move(tokens));
-    initializeModule();
     cout << "Initialized module" << endl;
+    auto* context = new llvm::LLVMContext();
+    auto* module = new llvm::Module("module", *context);
+    auto* builder = new llvm::IRBuilder<>(*context);
+    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
+    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "STELLAR_ENTRY", *module);
+    llvm::BasicBlock* entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
+    builder->SetInsertPoint(entryBlock);
+    map<string, llvm::Value*> namedValues;
     for (auto const &node : nodes) {
         cout << node->toString() << endl;
-        node->codegen();
+        node->codegen(builder, context, entryBlock, namedValues, module);
     }
     module->print(llvm::errs(), nullptr);
     cout << "Adding return to main" << endl;
