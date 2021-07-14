@@ -8,9 +8,9 @@
 llvm::Value* ASTVariableExpression::codegen(llvm::IRBuilder<>* builder,
                                             llvm::LLVMContext* context,
                                             llvm::BasicBlock* entryBlock,
-                                            map<string, llvm::Value*> namedValues,
+                                            map<string, llvm::Value*>* namedValues,
                                             llvm::Module* module) {
-    llvm::Value* v = namedValues.at(name);
+    llvm::Value* v = namedValues->at(name);
     if (!v) {
         cerr << "Parser: undeclared variable " << name << endl;
         exit(EXIT_FAILURE);

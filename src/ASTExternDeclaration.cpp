@@ -10,7 +10,7 @@ using namespace std;
 llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
                                            llvm::LLVMContext* context,
                                            llvm::BasicBlock* entryBlock,
-                                           map<string, llvm::Value*> namedValues,
+                                           map<string, llvm::Value*>* namedValues,
                                            llvm::Module* module) {
     vector<llvm::Type*> argTypes;
     for (const auto& arg : args) {

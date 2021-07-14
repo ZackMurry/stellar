@@ -17,17 +17,13 @@ class ASTIfStatement : public ASTNode {
 public:
     ASTIfStatement(ASTBinaryExpression* condition, vector<ASTNode*> ifBody, vector<ASTNode*> elseBody) : condition(condition), ifBody(move(ifBody)), elseBody(move(elseBody)) {}
     string toString() override {
-        string s = "[IF_STMT: condition: " + condition->toString() + " ifBody: ["; //+ ifBody->toString() + " elseBody: " + (elseBody ? elseBody ->toString() : "[none]") + "]";
+        string s = "[IF_STMT: condition: " + condition->toString() + " ifBody: [";
         for (auto const& stmt : ifBody) {
             s += stmt->toString();
         }
         s += "] elseBody: [";
-        if (!elseBody.empty()) {
-            for (auto const& stmt : ifBody) {
-                s += stmt->toString();
-            }
-        } else {
-            s += "none";
+        for (auto const& stmt : elseBody) {
+            s += stmt->toString();
         }
         s += "]]";
         return s;
@@ -35,7 +31,7 @@ public:
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
-                         map<string, llvm::Value*> namedValues,
+                         map<string, llvm::Value*>* namedValues,
                          llvm::Module* module) override;
 };
 

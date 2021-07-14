@@ -19,7 +19,7 @@ public:
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
-                         std::map<std::string, llvm::Value*> namedValues,
+                         std::map<std::string, llvm::Value*>* namedValues,
                          llvm::Module* module) override;
     VariableType getType() { return type; };
     std::string getName() { return name; };

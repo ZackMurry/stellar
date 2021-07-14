@@ -8,7 +8,7 @@
 llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
                                           llvm::LLVMContext* context,
                                           llvm::BasicBlock* entryBlock,
-                                          map<string, llvm::Value*> namedValues,
+                                          map<string, llvm::Value*>* namedValues,
                                           llvm::Module* module) {
     llvm::Value* l = lhs->codegen(builder, context, entryBlock, namedValues, module);
     llvm::Value* r = rhs->codegen(builder, context, entryBlock, namedValues, module);

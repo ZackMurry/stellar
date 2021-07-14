@@ -34,7 +34,7 @@ public:
     virtual llvm::Value *codegen(llvm::IRBuilder<>* builder,
                                  llvm::LLVMContext* context,
                                  llvm::BasicBlock* entryBlock,
-                                 std::map<std::string, llvm::Value*> namedValues,
+                                 std::map<std::string, llvm::Value*>* namedValues,
                                  llvm::Module* module) = 0;
 };
 

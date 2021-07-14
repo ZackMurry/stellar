@@ -8,7 +8,7 @@
 llvm::Value* ASTNumberExpression::codegen(llvm::IRBuilder<>* builder,
                                           llvm::LLVMContext* context,
                                           llvm::BasicBlock* entryBlock,
-                                          map<string, llvm::Value*> namedValues,
+                                          map<string, llvm::Value*>* namedValues,
                                           llvm::Module* module) {
     cout << "Number expression codegen" << endl;
     if (type == VARIABLE_TYPE_I32) {

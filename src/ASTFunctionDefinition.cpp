@@ -9,7 +9,7 @@
 llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
                                             llvm::LLVMContext* context,
                                             llvm::BasicBlock* entryBlock,
-                                            map<string, llvm::Value*> namedValues,
+                                            map<string, llvm::Value*>* namedValues,
                                             llvm::Module* module) {
     cout << "FuncDef codegen" << endl;
     llvm::Function* func = module->getFunction(name);
@@ -42,13 +42,13 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     llvm::BasicBlock* bb = llvm::BasicBlock::Create(*context, "entry", func);
     cout << "Created basic block" << endl;
     builder->SetInsertPoint(bb);
-    namedValues.clear();
+    namedValues->clear();
     unsigned index = 0;
     for (auto &arg : func->args()) {
         llvm::IRBuilder<> tempBuilder(&func->getEntryBlock(), func->getEntryBlock().begin());
         llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
         builder->CreateStore(&arg, alloca);
-        namedValues[string(arg.getName())] = alloca;
+        namedValues->insert({ string(arg.getName()), alloca });
     }
     for (auto &node : body) {
         node->codegen(builder, context, entryBlock, namedValues, module);
@@ -59,6 +59,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
         builder->CreateRetVoid();
     }
     builder->SetInsertPoint(entryBlock);
+    cout << "Verifying function " << name << endl;
     llvm::verifyFunction(*func);
     return func;
 }

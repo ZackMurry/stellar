@@ -7,7 +7,7 @@
 llvm::Value* ASTIfStatement::codegen(llvm::IRBuilder<>* builder,
                                      llvm::LLVMContext* context,
                                      llvm::BasicBlock* entryBlock,
-                                     map<string, llvm::Value*> namedValues,
+                                     map<string, llvm::Value*>* namedValues,
                                      llvm::Module* module) {
     llvm::Value* conditionValue = condition->codegen(builder, context, entryBlock, namedValues, module);
     llvm::BasicBlock* ifBB = llvm::BasicBlock::Create(*context, "ifbody");

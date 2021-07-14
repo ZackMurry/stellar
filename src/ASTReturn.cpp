@@ -7,7 +7,7 @@
 llvm::Value* ASTReturn::codegen(llvm::IRBuilder<>* builder,
                                 llvm::LLVMContext* context,
                                 llvm::BasicBlock* entryBlock,
-                                map<string, llvm::Value*> namedValues,
+                                map<string, llvm::Value*>* namedValues,
                                 llvm::Module* module) {
     if (exp) {
         llvm::Value* val = exp->codegen(builder, context, entryBlock, namedValues, module);

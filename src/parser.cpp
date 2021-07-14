@@ -607,12 +607,16 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
         // Empty else body
         return new ASTIfStatement(condition, body, vector<ASTNode*>());
     }
-    cout << "Parsing else" << endl;
     // Consume "else"
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    // todo else if
+    if (tokens[parsingIndex].type == TOKEN_IF) {
+        ASTNode* elseIfExpression = parseIfExpression(tokens);
+        vector<ASTNode*> elseBody;
+        elseBody.push_back(elseIfExpression);
+        return new ASTIfStatement(condition, body, elseBody);
+    }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
         cerr << "Error: expected '{' after else (single-line else blocks without braces are not allowed)!" << endl;
         exit(EXIT_FAILURE);
@@ -664,7 +668,7 @@ vector<ASTNode*> parse(vector<Token> tokens) {
     map<string, llvm::Value*> namedValues;
     for (auto const &node : nodes) {
         cout << node->toString() << endl;
-        node->codegen(builder, context, entryBlock, namedValues, module);
+        node->codegen(builder, context, entryBlock, &namedValues, module);
     }
     module->print(llvm::errs(), nullptr);
     cout << "Adding return to main" << endl;
