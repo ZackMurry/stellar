@@ -5,6 +5,7 @@
 
 using namespace std;
 
+// todo a preprocessor and standard library
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         cerr << "Error: expected input file" << endl;

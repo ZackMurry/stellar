@@ -16,7 +16,8 @@ enum TokenType {
     TOKEN_RETURN,
     TOKEN_EXTERN,
     TOKEN_IF,
-    TOKEN_ELSE
+    TOKEN_ELSE,
+    TOKEN_STRING
 };
 
 struct Token {

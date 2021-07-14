@@ -21,6 +21,7 @@ enum VariableType {
     VARIABLE_TYPE_D,
     VARIABLE_TYPE_B,
     VARIABLE_TYPE_V,
+    VARIABLE_TYPE_S
 };
 
 llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* context);

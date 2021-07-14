@@ -9,10 +9,16 @@ llvm::Value* ASTVariableDeclaration::codegen(llvm::IRBuilder<>* builder,
                                              llvm::BasicBlock* entryBlock,
                                              map<string, llvm::Value*>* namedValues,
                                              llvm::Module* module) {
-    llvm::Type* llvmType = getLLVMTypeByVariableType(type, context);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
-    builder->CreateStore(value->codegen(builder, context, entryBlock, namedValues, module), alloca);
-    namedValues->insert({ name, alloca });
-    return alloca;
+    if (type == VARIABLE_TYPE_S) {
+        auto val = value->codegen(builder, context, entryBlock, namedValues, module);
+        namedValues->insert({ name, val });
+        return val;
+    } else {
+        llvm::Type* llvmType = getLLVMTypeByVariableType(type, context);
+        llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
+        builder->CreateStore(value->codegen(builder, context, entryBlock, namedValues, module), alloca);
+        namedValues->insert({ name, alloca });
+        return alloca;
+    }
 }
 

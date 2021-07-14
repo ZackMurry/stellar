@@ -15,5 +15,8 @@ llvm::Value* ASTVariableExpression::codegen(llvm::IRBuilder<>* builder,
         cerr << "Parser: undeclared variable " << name << endl;
         exit(EXIT_FAILURE);
     }
+    if (v->getType()->isPointerTy()) {
+        return namedValues->at(name);
+    }
     return builder->CreateLoad(v, name.c_str());
 }

@@ -28,6 +28,9 @@ bool isNumeric(const string& s) {
 void consumeChar() {
     lexingIndex++;
     column++;
+    if (lexingIndex > content.size()) {
+        cout << "Warn: consume char exceeded content size" << endl;
+    }
 }
 
 struct Token readToken() {
@@ -144,11 +147,44 @@ struct Token readToken() {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
         if (content.at(lexingIndex) == '=') {
-            lexingIndex++;
+            consumeChar();
             token.value = "!=";
         } else {
             token.value = "!";
         }
+        return token;
+    }
+    if (ch == '"') {
+        token.type = TOKEN_STRING;
+        consumeChar();
+        string val;
+        while (lexingIndex < content.size() && content.at(lexingIndex) != '"') {
+            // If char is an escape char
+            if (content.at(lexingIndex) == '\\' && content.at(lexingIndex + 1) != '\\') {
+                consumeChar(); // Consume '\'
+                if (content.at(lexingIndex) == 'n') {
+                    val += '\n';
+                    consumeChar();
+                } else if (content.at(lexingIndex) == 't') {
+                    val += '\t';
+                    consumeChar();
+                } else if (content.at(lexingIndex) == '"') {
+                    val += '"';
+                    consumeChar();
+                } else {
+                    cerr << "Error on line " << column << ": unknown escape character " << '\\' << content.at(lexingIndex) << ". Treating character as unescaped" << endl;
+                    val += '\\';
+                    val += content.at(lexingIndex);
+                    consumeChar();
+                }
+                continue;
+            }
+            val += content.at(lexingIndex);
+            consumeChar();
+        }
+        // Consume '"'
+        consumeChar();
+        token.value = val;
         return token;
     }
     string word;

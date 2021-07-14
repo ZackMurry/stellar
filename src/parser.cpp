@@ -32,6 +32,7 @@
 #include "include/ASTVariableDeclaration.h"
 #include "include/ASTVariableDefinition.h"
 #include "include/ASTVariableExpression.h"
+#include "include/ASTStringExpression.h"
 
 using namespace std;
 
@@ -64,6 +65,8 @@ llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* cont
         return llvm::Type::getInt16Ty(*context);
     } else if (type == VARIABLE_TYPE_I64) {
         return llvm::Type::getInt64Ty(*context);
+    } else if (type == VARIABLE_TYPE_S) {
+        return llvm::Type::getInt8PtrTy(*context);
     } else {
         std::cerr << "Parser: unimplemented type " << type << std::endl;
         exit(EXIT_FAILURE);
@@ -147,6 +150,8 @@ ASTNode* parsePrimary(vector<Token> tokens) {
             } else {
                 printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
             }
+        case TOKEN_STRING:
+            return new ASTStringExpression(tokens[parsingIndex++].value);
         default:
             printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
             return nullptr;
@@ -234,6 +239,8 @@ int getVariableTypeFromToken(const Token& token) {
         return VARIABLE_TYPE_I64;
     } else if (token.value == "v") {
         return VARIABLE_TYPE_V;
+    } else if (token.value == "s") {
+        return VARIABLE_TYPE_S;
     } else {
         return -1;
     }
@@ -645,7 +652,16 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         cout << node->toString() << endl;
         node->codegen(builder, context, entryBlock, &namedValues, module);
     }
-    module->print(llvm::errs(), nullptr);
+    // this stuff is temporary for testing
+//    auto stringStruct = llvm::StructType::create(*context, "String");
+//    vector<llvm::Type*> types;
+//    types.push_back(llvm::Type::getInt8PtrTy(*context));
+//    types.push_back(llvm::Type::getInt32Ty(*context));
+//    types.push_back(llvm::Type::getInt32Ty(*context));
+//    types.push_back(llvm::Type::getInt32Ty(*context));
+//    stringStruct->setBody(llvm::ArrayRef<llvm::Type*>(types));
+//    builder->CreateAlloca(stringStruct, nullptr, "myString");
+
     cout << "Adding return to main" << endl;
     builder->SetInsertPoint(entryBlock);
     builder->CreateRetVoid();
@@ -662,6 +678,7 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         llvm::errs() << error;
         exit(EXIT_FAILURE);
     }
+    cout << "target name: " << target->getName() << endl;
     auto CPU = "generic";
     auto features = "";
     llvm::TargetOptions opt;
@@ -670,6 +687,9 @@ vector<ASTNode*> parse(vector<Token> tokens) {
     cout << "Setting data layout" << endl;
     module->setDataLayout(targetMachine->createDataLayout());
     module->setTargetTriple(targetTriple);
+    module->setPIELevel(llvm::PIELevel::Large);
+    module->setPICLevel(llvm::PICLevel::BigPIC);
+    module->print(llvm::errs(), nullptr);
     auto filename = "output.o";
     error_code EC;
     llvm::raw_fd_ostream dest(filename, EC, llvm::sys::fs::OF_None);

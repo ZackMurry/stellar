@@ -55,7 +55,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     }
     cout << "For loops done" << endl;
     // If the final block is empty, add a return statement to it so that it is not empty
-    if (builder->GetInsertBlock()->empty()) {
+    if (builder->GetInsertBlock()->empty() || !builder->GetInsertBlock()->end()->isTerminator()) {
         builder->CreateRetVoid();
     }
     builder->SetInsertPoint(entryBlock);
