@@ -44,6 +44,11 @@ void printOutOfTokensError() {
     exit(EXIT_FAILURE);
 }
 
+void printFatalErrorMessage(const string& s, vector<Token> tokens) {
+    cerr << "Error on line " << tokens[parsingIndex].row + 1 << ": " << s << endl;
+    exit(EXIT_FAILURE);
+}
+
 llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* context) {
     if (type == VARIABLE_TYPE_F) {
         return llvm::Type::getFloatTy(*context);
@@ -77,8 +82,7 @@ ASTNode* parseNumberExpression(vector<Token> tokens) {
         cout << "i: " << i << endl;
         if (val.at(i) == '.') {
             if (type == VARIABLE_TYPE_F) {
-                cerr << "Error: expected a maximum of one decimal to occur in a number" << endl;
-                exit(EXIT_FAILURE);
+                printFatalErrorMessage("expected a maximum of one decimal to occur in a number", tokens);
             }
             type = VARIABLE_TYPE_F;
             lastDigitIndex = i;
@@ -90,8 +94,7 @@ ASTNode* parseNumberExpression(vector<Token> tokens) {
         }
     }
     if (lastDigitIndex == -1) {
-        cerr << "Error: expected number to start with at least one digit (number was " << val << ")" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected number to start with at least one digit", tokens);
     }
     string numericPart = val.substr(0, lastDigitIndex + 1);
     string typePart = val.substr(lastDigitIndex + 1);
@@ -116,8 +119,7 @@ ASTNode* parseNumberExpression(vector<Token> tokens) {
             cout << "Number is an explicit i8 type" << endl;
             type = VARIABLE_TYPE_I8;
         } else {
-            cerr << "Error: unknown explicit variable type suffix " << typePart << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("unknown explicit variable type suffix", tokens);
         }
     }
     return new ASTNumberExpression(numericPart, type);
@@ -127,8 +129,7 @@ ASTNode* parseParenExpression(vector<Token> tokens) {
     parsingIndex++; // Consume '('
     auto v = parseExpression(tokens);
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
-        cerr << "Error: expected ')'" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected ')'", tokens);
     }
     parsingIndex++; // Consume ')'
     return v;
@@ -144,12 +145,11 @@ ASTNode* parsePrimary(vector<Token> tokens) {
             if (tokens[parsingIndex].value == "(") {
                 return parseParenExpression(tokens);
             } else {
-                cerr << "Error: unknown token found when parsing expression (" << tokens[parsingIndex].value << ")" << endl;
-                exit(EXIT_FAILURE);
+                printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
             }
         default:
-            cerr << "Error: unknown token found when parsing expression" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
+            return nullptr;
     }
 }
 
@@ -192,8 +192,8 @@ ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
         } else if (tokens[parsingIndex].value == "/") {
             binOp = OPERATOR_DIVIDE;
         } else {
-            cerr << "Error: unknown binary operator (" << tokens[parsingIndex].value << ")" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("unknown binary operator '" + tokens[parsingIndex].value + "'", tokens);
+            return nullptr;
         }
         parsingIndex++;
         auto rhs = parsePrimary(tokens);
@@ -278,18 +278,15 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
             break;
         }
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-            cerr << "Error: expected type in function parameter" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("expected type in function parameter", tokens);
         }
         int ivt = getVariableTypeFromToken(tokens[parsingIndex]);
         if (ivt == -1) {
-            cerr << "Error: expected type in function parameter" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("expected type in function parameter", tokens);
         }
         parsingIndex++;
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-            cerr << "Error: expected parameter name after type" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("expected parameter name after type", tokens);
         }
         args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
         cout << "arg: " << args.back()->getName() << endl;
@@ -301,16 +298,14 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
         }
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
-        cerr << "Error: expected ')' after function parameters" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected ')' after function parameters", tokens);
     }
     // Consume ')'
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
-        cerr << "Error: expected '{' after function prototype" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected '{' after function prototype", tokens);
     }
     // Consume '{'
     if (++parsingIndex >= tokens.size()) {
@@ -331,16 +326,14 @@ ASTNode* parseArrayDefinition(vector<Token> tokens, VariableType type) {
     ASTNode* length = parseExpression(tokens);
     cout << "Length: " << length->toString() << endl;
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
-        cerr << "Error: expected ending brace after array length" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected ']' after array length", tokens);
     }
     // Consume ']'
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-        cerr << "Error: expected identifier after array type" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected identifier after array type", tokens);
     }
     string name = tokens[parsingIndex++].value; // Consume name
     return new ASTArrayDefinition(name, type, length);
@@ -353,8 +346,7 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
         return parseArrayDefinition(tokens, type);
     }
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-        cerr << "Error: expected identifier after variable type but found token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected identifier after variable type but found token type " + to_string(tokens[parsingIndex].type) + ":" + tokens[parsingIndex].value, tokens);
     }
     string name = tokens[parsingIndex++].value; // Get var name and consume token
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
@@ -362,16 +354,14 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
         // todo returning arrays from functions
         return parseFunctionDefinition(tokens, type, name);
     } else if (type == VARIABLE_TYPE_V) {
-        cerr << "Error: only functions can use the 'v' type" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("only functions prototypes can use the 'v' type", tokens);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_NEWLINE) {
             parsingIndex++;
             return new ASTVariableDefinition(move(name), type);
         } else {
-            cerr << "Error: expected new line or equals sign after variable definition but instead found token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("expected new line or equals sign after variable definition but instead found token type " + to_string(tokens[parsingIndex].type) + ":" + tokens[parsingIndex].value, tokens);
         }
     }
     parsingIndex++; // Consume '='
@@ -381,8 +371,7 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
 // Expects current token to be the equals sign in 'a = E'
 ASTNode* parseVariableAssignment(vector<Token> tokens, string name) {
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
-        cerr << "Unexpected parsing error: variable assignment parsing failed (= expected)" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected '='", tokens);
     }
     parsingIndex++; // Consume '='
     return new ASTVariableAssignment(move(name), parseExpression(tokens));
@@ -397,8 +386,7 @@ ASTNode* parseArrayAccess(vector<Token> tokens, string name) {
     }
     ASTNode* index = parseExpression(tokens);
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
-        cerr << "Error: expected ']' after array index" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected ']' after array index", tokens);
     }
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
@@ -447,8 +435,7 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
             }
             if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
                 cout << "i: " << parsingIndex << endl;
-                cerr << "Error: expected ',' or ')' in argument list" << endl;
-                exit(EXIT_FAILURE);
+                printFatalErrorMessage("expected ',' or ')' in argument list", tokens);
             }
             // Consume ','
             if (++parsingIndex >= tokens.size()) {
@@ -480,20 +467,17 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
         printOutOfTokensError();
     }
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-        cerr << "Error: expected function return type after 'x'" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected function return type after 'x'", tokens);
     }
     int returnType = getVariableTypeFromToken(tokens[parsingIndex]);
     if (returnType == -1) {
-        cerr << "Error: expected function return type after 'x' but instead found " << tokens[parsingIndex].value << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected function return type after 'x' but instead found " + tokens[parsingIndex].value, tokens);
     }
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-        cerr << "Error: expected extern function's name after its return type" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected extern function name after its return type", tokens);
     }
     string name = tokens[parsingIndex].value;
     // Consume name
@@ -506,18 +490,15 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
             break;
         }
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-            cerr << "Error: expected type in function parameter" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("expected type in function parameter", tokens);
         }
         int ivt = getVariableTypeFromToken(tokens[parsingIndex]);
         if (ivt == -1 || ivt == VARIABLE_TYPE_V) {
-            cerr << "Error: expected type in function parameter" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("expected type in function parameter", tokens);
         }
         parsingIndex++;
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-            cerr << "Error: expected parameter name after type" << endl;
-            exit(EXIT_FAILURE);
+            printFatalErrorMessage("expected parameter name after type", tokens);
         }
         args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
         if (++parsingIndex >= tokens.size()) {
@@ -528,8 +509,7 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
         }
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
-        cerr << "Error: expected ')' after function parameters" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected ')' after function parameters", tokens);
     }
     // Consume ')'
     parsingIndex++;
@@ -544,8 +524,7 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
         printOutOfTokensError();
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
-        cerr << "Error: expected '(' after if" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected '(' after if", tokens);
     }
     // Consume "("
     if (++parsingIndex >= tokens.size()) {
@@ -554,8 +533,7 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     auto conditionLHS = parseExpression(tokens);
 
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION) {
-        cerr << "Error: expected comparison operator after expression in if condition" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected comparison operator after expression in if condition", tokens);
     }
 
     ExpressionOperator op;
@@ -572,8 +550,8 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     } else if (tokens[parsingIndex].value == "!=") {
         op = OPERATOR_NE;
     } else {
-        cerr << "Error: expected comparison operator after expression in if condition" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected comparison operator after expression in if condition", tokens);
+        return nullptr;
     }
     // Consume comparison
     if (++parsingIndex >= tokens.size()) {
@@ -585,8 +563,7 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     cout << "Condition: " << condition->toString() << endl;
 
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
-        cerr << "Error: expected ')' after if condition" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected ')' after if condition", tokens);
     }
     // Consume ")"
     if (++parsingIndex >= tokens.size()) {
@@ -594,8 +571,7 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     }
 
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
-        cerr << "Error: expected '{' after if condition (single-line if statements without braces are not allowed)!" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected '{' after if condition (single-line if statements without braces are not allowed)", tokens);
     }
     // Consume "{"
     if (++parsingIndex >= tokens.size()) {
@@ -618,8 +594,7 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
         return new ASTIfStatement(condition, body, elseBody);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
-        cerr << "Error: expected '{' after else (single-line else blocks without braces are not allowed)!" << endl;
-        exit(EXIT_FAILURE);
+        printFatalErrorMessage("expected '{' after else (single-line else blocks without braces are not allowed)", tokens);
     }
     // Consume "{"
     if (++parsingIndex >= tokens.size()) {

@@ -22,6 +22,8 @@ enum TokenType {
 struct Token {
     TokenType type;
     std::string value;
+    int row;
+    int column;
 };
 
 #endif //STELLAR_LEXERTOKEN_H

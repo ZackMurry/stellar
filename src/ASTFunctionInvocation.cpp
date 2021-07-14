@@ -14,7 +14,7 @@ llvm::Value* ASTFunctionInvocation::codegen(llvm::IRBuilder<>* builder,
                                             llvm::Module* module) {
     llvm::Function* calleeFunc = module->getFunction(name);
     if (!calleeFunc) {
-        cerr << "Error: unknown function reference" << endl;
+        cerr << "Error: unknown reference to " << name << endl;
         exit(EXIT_FAILURE);
     }
     if (calleeFunc->arg_size() != args.size()) {

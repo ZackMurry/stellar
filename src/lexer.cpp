@@ -11,6 +11,8 @@
 using namespace std;
 
 unsigned long lexingIndex = 0;
+int row = 0;
+int column = 0;
 string content;
 
 bool isNumeric(const string& s) {
@@ -23,14 +25,21 @@ bool isNumeric(const string& s) {
     return true;
 }
 
+void consumeChar() {
+    lexingIndex++;
+    column++;
+}
+
 struct Token readToken() {
     struct Token token;
+    token.row = row;
+    token.column = column;
     char ch = content.at(lexingIndex);
     if (ch == '=') {
         token.type = TOKEN_PUNCTUATION;
-        lexingIndex++;
+        consumeChar();
         if (content.at(lexingIndex) == '=') {
-            lexingIndex++;
+            consumeChar();
             token.value = "==";
         } else {
             token.value = "=";
@@ -40,78 +49,78 @@ struct Token readToken() {
     if (ch == '(') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "(";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == ')') {
         token.type = TOKEN_PUNCTUATION;
         token.value = ")";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '{') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "{";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '}') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "}";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '[') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "[";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == ']') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "]";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '+') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "+";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '-') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "-";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '*') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "*";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '/') {
         token.type = TOKEN_PUNCTUATION;
         token.value = "/";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == ',') {
         token.type = TOKEN_PUNCTUATION;
         token.value = ",";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == ';') { // For for-loops
         token.type = TOKEN_PUNCTUATION;
         token.value = ";";
-        lexingIndex++;
+        consumeChar();
         return token;
     }
     if (ch == '<') {
         token.type = TOKEN_PUNCTUATION;
-        lexingIndex++;
+        consumeChar();
         if (content.at(lexingIndex) == '=') {
             lexingIndex++;
             token.value = "<=";
@@ -122,7 +131,7 @@ struct Token readToken() {
     }
     if (ch == '>') {
         token.type = TOKEN_PUNCTUATION;
-        lexingIndex++;
+        consumeChar();
         if (content.at(lexingIndex) == '=') {
             lexingIndex++;
             token.value = ">=";
@@ -133,7 +142,7 @@ struct Token readToken() {
     }
     if (ch == '!') {
         token.type = TOKEN_PUNCTUATION;
-        lexingIndex++;
+        consumeChar();
         if (content.at(lexingIndex) == '=') {
             lexingIndex++;
             token.value = "!=";
@@ -147,7 +156,8 @@ struct Token readToken() {
         token.type = TOKEN_NUMBER;
         while (lexingIndex < content.size() && isdigit(ch)) {
             word += (char) ch;
-            if (++lexingIndex >= content.size()) {
+            consumeChar();
+            if (lexingIndex >= content.size()) {
                 break;
             }
             ch = content.at(lexingIndex);
@@ -155,16 +165,21 @@ struct Token readToken() {
         token.value = word;
         if (content.at(lexingIndex) == '.') {
             token.value += '.';
-            while (isdigit(content.at(++lexingIndex))) {
+            consumeChar();
+            while (isdigit(content.at(lexingIndex))) {
                 token.value += content.at(lexingIndex);
+                consumeChar();
             }
         }
         if (content.at(lexingIndex) == 'f' || content.at(lexingIndex) == 'd') {
-            token.value += content.at(lexingIndex++);
+            token.value += content.at(lexingIndex);
+            consumeChar();
         } else if (content.at(lexingIndex) == 'i') {
-            token.value += content.at(lexingIndex++);
+            token.value += content.at(lexingIndex);
+            consumeChar();
             while (isdigit(content.at(lexingIndex))) {
-                token.value += content.at(lexingIndex++);
+                token.value += content.at(lexingIndex);
+                consumeChar();
             }
         }
         return token;
@@ -172,7 +187,8 @@ struct Token readToken() {
 
     while (lexingIndex < content.size() && isalnum(ch)) {
         word += (char) ch;
-        if (++lexingIndex >= content.size()) {
+        consumeChar();
+        if (lexingIndex >= content.size()) {
             break;
         }
         ch = content.at(lexingIndex);
@@ -218,14 +234,21 @@ vector<Token> tokenize(string data) {
     vector<Token> tokens;
     while (lexingIndex < content.size()) {
         struct Token t = readToken();
-        cout << t.type << ":" << t.value << "@" << lexingIndex << endl;
+        cout << t.type << ":" << t.value << " @ [" << t.row + 1 << ":" << t.column + 1 << "]" << endl;
         tokens.push_back(t);
         if (lexingIndex < content.size() && content.at(lexingIndex) == '\n') {
-            tokens.push_back({ TOKEN_NEWLINE, "" });
-            cout << TOKEN_NEWLINE << ":" << "@" << lexingIndex << endl;
+            tokens.push_back({ TOKEN_NEWLINE, "", row, column });
             lexingIndex++;
+            row++;
+            column = 0;
         }
         while (lexingIndex < content.size() && (content.at(lexingIndex) == ' ' || content.at(lexingIndex) == '\n' || content.at(lexingIndex) == '\t')) {
+            if (content.at(lexingIndex) == '\n') {
+                row++;
+                column = 0;
+            } else {
+                column++;
+            }
             lexingIndex++;
         }
     }
