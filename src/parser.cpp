@@ -22,23 +22,35 @@
 #include "include/ASTArrayDefinition.h"
 #include "include/ASTArrayIndexAssignment.h"
 #include "include/ASTBinaryExpression.h"
+#include "include/ASTClassDefinition.h"
+#include "include/ASTClassFieldAccess.h"
+#include "include/ASTClassFieldStore.h"
+#include "include/ASTClassInstantiation.h"
 #include "include/ASTExternDeclaration.h"
 #include "include/ASTFunctionDefinition.h"
 #include "include/ASTFunctionInvocation.h"
 #include "include/ASTIfStatement.h"
 #include "include/ASTNumberExpression.h"
 #include "include/ASTReturn.h"
+#include "include/ASTStringExpression.h"
 #include "include/ASTVariableAssignment.h"
 #include "include/ASTVariableDeclaration.h"
 #include "include/ASTVariableDefinition.h"
 #include "include/ASTVariableExpression.h"
-#include "include/ASTStringExpression.h"
 
 using namespace std;
 
 // todo: boolean literals (true, false)
 
 unsigned long parsingIndex = 0;
+
+struct ClassData {
+    llvm::Type* type = nullptr;
+    map<string, llvm::Type*> fields;
+};
+
+static map<string, ClassData> definedClasses;
+static auto* context = new llvm::LLVMContext();
 
 void printOutOfTokensError() {
     cerr << "Error: expected token, but nothing found at token " << parsingIndex << endl;
@@ -408,6 +420,49 @@ ASTNode* parseArrayAccess(vector<Token> tokens, string name) {
     return new ASTArrayAccess(move(name), index);
 }
 
+// Expects parsingIndex to be after the class name (at the variable name)
+ASTNode* parseClassInstantiation(vector<Token> tokens, const string& className) {
+    cout << "Class instantiation" << endl;
+    string identifier = tokens[parsingIndex].value;
+    // Consume identifier
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    return new ASTClassInstantiation(definedClasses[className].type, identifier);
+}
+
+// Expects parsingIndex to be at '.'
+ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
+    cout << "Class access: " << identifier << endl;
+    // Consume '.'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        printFatalErrorMessage("expected field/method name after '.' in object access", tokens);
+    }
+    // todo myInst.myField.mySubField
+    string fieldName = tokens[parsingIndex].value;
+    // todo keep track of objects and their class type
+    ClassData classData = definedClasses.at("MyClass");
+    int i = 0;
+    for (auto & field : classData.fields) {
+        if (field.first == fieldName) {
+            break;
+        }
+        i++;
+    }
+    if (++parsingIndex >= tokens.size() || tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
+        return new ASTClassFieldAccess(identifier, classData.type, i);
+    }
+    cout << "Class field store" << endl;
+    // Consume '='
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    return new ASTClassFieldStore(identifier, classData.type, i, parseExpression(tokens));
+}
+
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value; // Get and consume identifier
     int variableType = getVariableTypeFromToken(tokens[parsingIndex]);
@@ -417,8 +472,13 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     if (variableType != -1) {
         return parseVariableDeclaration(tokens, (VariableType) variableType);
     }
+    if (definedClasses.count(identifier)) {
+        return parseClassInstantiation(tokens, identifier);
+    }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
         return parseVariableAssignment(tokens, identifier);
+    } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {
+        return parseClassAccess(tokens, identifier);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
         cout << "Variable expression" << endl;
@@ -467,6 +527,7 @@ ASTNode* parseReturnExpression(vector<Token> tokens) {
     return new ASTReturn(parseExpression(tokens));
 }
 
+// Todo make parameter names optional
 ASTNode* parseExternExpression(vector<Token> tokens) {
     cout << "Extern definition" << endl;
     // Consume 'x'
@@ -614,6 +675,90 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     return new ASTIfStatement(condition, body, elseBody);
 }
 
+// expects parsingIndex to be at "c"
+ASTNode* parseClassDefinition(vector<Token> tokens) {
+    cout << "Class definition" << endl;
+    // Consume "if"
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        printFatalErrorMessage("expected class name after 'c'", tokens);
+    }
+    string name = tokens[parsingIndex].value;
+    // Consume name
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
+        printFatalErrorMessage("expected '{' after class name", tokens);
+    }
+    // Consume '{'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_NEWLINE) {
+        printFatalErrorMessage("expected newline after class opening brace", tokens);
+    }
+    // Consume newline
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    map<string, llvm::Type*> fields;
+    vector<llvm::Type*> fieldTypes;
+    while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "}")) {
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            printFatalErrorMessage("expected identifier in class body", tokens);
+        }
+        string fieldType = tokens[parsingIndex].value;
+        int variableType = getVariableTypeFromToken(tokens[parsingIndex]);
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        llvm::Type* type;
+        if (variableType != -1) {
+            type = getLLVMTypeByVariableType((VariableType) variableType, context);
+        } else if (definedClasses.count(fieldType)) {
+            type = definedClasses[fieldType].type;
+        } else {
+            printFatalErrorMessage("expected field to start with type", tokens);
+        }
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            printFatalErrorMessage("expected field name after type", tokens);
+        }
+        string fieldName = tokens[parsingIndex].value;
+        fields.insert({ fieldName, type });
+        fieldTypes.push_back(type);
+        cout << "field: " << fieldName << endl;
+        // Consume field name
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type != TOKEN_NEWLINE) {
+            printFatalErrorMessage("expected new line after field declaration", tokens);
+        }
+        // Consume newline
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+    }
+    // Todo parse fields and methods
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "}") {
+        // Consume }
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        cout << "class" << endl;
+        auto classType = llvm::StructType::create(*context, name);
+        classType->setBody(fieldTypes);
+        definedClasses.insert({ name, { classType, fields } });
+        return new ASTClassDefinition(name);
+    } else {
+        printFatalErrorMessage("expected empty class", tokens);
+        return nullptr;
+    }
+}
+
 vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
     parsingIndex = 0;
     vector<ASTNode*> nodes;
@@ -628,6 +773,8 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
             nodes.push_back(parseExternExpression(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_IF) {
             nodes.push_back(parseIfExpression(tokens));
+        } else if (tokens[parsingIndex].type == TOKEN_CLASS) {
+            nodes.push_back(parseClassDefinition(tokens));
         } else {
             cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
             parsingIndex++;
@@ -640,7 +787,6 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
 vector<ASTNode*> parse(vector<Token> tokens) {
     vector<ASTNode*> nodes = parseWithoutTokenizing(move(tokens));
     cout << "Initialized module" << endl;
-    auto* context = new llvm::LLVMContext();
     auto* module = new llvm::Module("module", *context);
     auto* builder = new llvm::IRBuilder<>(*context);
     llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
@@ -652,15 +798,6 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         cout << node->toString() << endl;
         node->codegen(builder, context, entryBlock, &namedValues, module);
     }
-    // this stuff is temporary for testing
-//    auto stringStruct = llvm::StructType::create(*context, "String");
-//    vector<llvm::Type*> types;
-//    types.push_back(llvm::Type::getInt8PtrTy(*context));
-//    types.push_back(llvm::Type::getInt32Ty(*context));
-//    types.push_back(llvm::Type::getInt32Ty(*context));
-//    types.push_back(llvm::Type::getInt32Ty(*context));
-//    stringStruct->setBody(llvm::ArrayRef<llvm::Type*>(types));
-//    builder->CreateAlloca(stringStruct, nullptr, "myString");
 
     cout << "Adding return to main" << endl;
     builder->SetInsertPoint(entryBlock);

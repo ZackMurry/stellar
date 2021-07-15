@@ -154,6 +154,12 @@ struct Token readToken() {
         }
         return token;
     }
+    if (ch == '.') {
+        token.type = TOKEN_PUNCTUATION;
+        consumeChar();
+        token.value = '.';
+        return token;
+    }
     if (ch == '"') {
         token.type = TOKEN_STRING;
         consumeChar();
@@ -249,6 +255,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "c") {
+        token.type = TOKEN_CLASS;
+        token.value = "";
+        return token;
+    }
     if (word == "if") {
         token.type = TOKEN_IF;
         token.value = "";
@@ -264,6 +275,7 @@ struct Token readToken() {
     return token;
 }
 
+// todo: for preprocessor: run lexer first, then find imports, then call tokenize with the data of the file and the name of the file (to include file names in error msgs), import files, repeat
 vector<Token> tokenize(string data) {
     lexingIndex = 0;
     content = move(data);
@@ -273,6 +285,7 @@ vector<Token> tokenize(string data) {
         cout << t.type << ":" << t.value << " @ [" << t.row + 1 << ":" << t.column + 1 << "]" << endl;
         tokens.push_back(t);
         if (lexingIndex < content.size() && content.at(lexingIndex) == '\n') {
+            cout << TOKEN_NEWLINE << ":" << "" << " @ [" << row + 1 << ":" << column + 1 << "]" << endl;
             tokens.push_back({ TOKEN_NEWLINE, "", row, column });
             lexingIndex++;
             row++;
