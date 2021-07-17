@@ -48,6 +48,7 @@ public:
         this->args = move(a);
     }
     void addArg(ASTVariableDefinition* arg) {
+        // todo: it would be nicer to put it at the front
         this->args.push_back(arg);
     }
 };

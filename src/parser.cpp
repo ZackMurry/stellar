@@ -30,6 +30,7 @@
 #include "include/ASTFunctionDefinition.h"
 #include "include/ASTFunctionInvocation.h"
 #include "include/ASTIfStatement.h"
+#include "include/ASTMethodCall.h"
 #include "include/ASTNumberExpression.h"
 #include "include/ASTReturn.h"
 #include "include/ASTStringExpression.h"
@@ -42,7 +43,6 @@ using namespace std;
 
 // todo: boolean literals (true, false)
 // todo: MyClass myInst = myOtherInst
-// todo: parse method calls (myInst.myMethod()) instead of having to manually invoke (MyClass__myMethod(myInst))
 // todo: constructors
 // todo: returning objects
 
@@ -465,6 +465,37 @@ ASTNode* parseClassInstantiation(vector<Token> tokens) {
     return new ASTClassInstantiation(className, identifier);
 }
 
+// Expects parsing index to be at '('
+ASTNode* parseMethodCall(vector<Token> tokens, const string& identifier, const string& methodName) {
+    cout << "Method call" << endl;
+    // Consume '('
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+
+    vector<ASTNode*> args;
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+        while (true) {
+            args.push_back(parseExpression(tokens));
+            if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+                break;
+            }
+            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+                cout << "i: " << parsingIndex << endl;
+                printFatalErrorMessage("expected ',' or ')' in argument list", tokens);
+            }
+            // Consume ','
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+        }
+    }
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    return new ASTMethodCall(identifier, methodName, args);
+}
+
 // Expects parsingIndex to be at '.'
 ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
     cout << "Class access: " << identifier << endl;
@@ -478,6 +509,9 @@ ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
     // todo myInst.myField.mySubField
     string fieldName = tokens[parsingIndex].value;
     if (++parsingIndex >= tokens.size() || tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
+            return parseMethodCall(tokens, identifier, fieldName);
+        }
         return new ASTClassFieldAccess(identifier, fieldName);
     }
     cout << "Class field store" << endl;
