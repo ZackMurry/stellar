@@ -4,8 +4,12 @@
 
 #include "include/ASTStringExpression.h"
 
-llvm::Value* ASTStringExpression::codegen(llvm::IRBuilder<> *builder, llvm::LLVMContext *context,
-                                          llvm::BasicBlock *entryBlock, map<string, llvm::Value *> *namedValues,
-                                          llvm::Module *module) {
+llvm::Value* ASTStringExpression::codegen(llvm::IRBuilder<> *builder,
+                                          llvm::LLVMContext *context,
+                                          llvm::BasicBlock *entryBlock,
+                                          map<string, llvm::Value *> *namedValues,
+                                          llvm::Module *module,
+                                          map<string, string>* objectTypes,
+                                          map<string, ClassData>* classes) {
     return builder->CreateGlobalStringPtr(llvm::StringRef(val));
 }

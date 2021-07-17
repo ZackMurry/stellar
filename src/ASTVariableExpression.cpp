@@ -9,14 +9,16 @@ llvm::Value* ASTVariableExpression::codegen(llvm::IRBuilder<>* builder,
                                             llvm::LLVMContext* context,
                                             llvm::BasicBlock* entryBlock,
                                             map<string, llvm::Value*>* namedValues,
-                                            llvm::Module* module) {
+                                            llvm::Module* module,
+                                            map<string, string>* objectTypes,
+                                            map<string, ClassData>* classes) {
     llvm::Value* v = namedValues->at(name);
     if (!v) {
         cerr << "Parser: undeclared variable " << name << endl;
         exit(EXIT_FAILURE);
     }
-    if (v->getType()->isPointerTy()) {
-        return namedValues->at(name);
-    }
+//    if (v->getType()->isPointerTy()) {
+//        return namedValues->at(name);
+//    }
     return builder->CreateLoad(v, name.c_str());
 }

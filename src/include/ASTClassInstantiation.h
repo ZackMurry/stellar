@@ -10,18 +10,20 @@
 using namespace std;
 
 class ASTClassInstantiation : public ASTNode {
-    llvm::Type* type;
-    string name;
+    string className;
+    string identifier;
 public:
-    ASTClassInstantiation(llvm::Type* type, string name) : type(type), name(move(name)) {}
+    ASTClassInstantiation(string className, string identifier) : className(move(className)), identifier(move(identifier)) {}
     string toString() override {
-        return "[CLASS_INST: type: " + type->getStructName().str() + " name: " + name + "]";
+        return "[CLASS_INST: type: " + className + " name: " + identifier + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
                          map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module) override;
+                         llvm::Module* module,
+                         map<string, string>* objectTypes,
+                         map<string, ClassData>* classes) override;
 };
 
 

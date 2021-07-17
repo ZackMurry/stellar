@@ -11,16 +11,20 @@ using namespace std;
 
 class ASTClassDefinition : public ASTNode {
     string name;
+    map<string, string> fields;
+    vector<string> fieldTypes;
 public:
-    explicit ASTClassDefinition(string name) : name(move(name)) {}
+    explicit ASTClassDefinition(string name, map<string, string> fields, vector<string> fieldTypes) : name(move(name)), fields(move(fields)), fieldTypes(move(fieldTypes)) {}
     string toString() override {
-        return "[CLASS_DEF: " + name + "]";
+        return "[CLASS_DEF: " + name + " num fields: " + to_string(fields.size()) + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
                          map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module) override;
+                         llvm::Module* module,
+                         map<string, string>* objectTypes,
+                         map<string, ClassData>* classes) override;
 };
 
 

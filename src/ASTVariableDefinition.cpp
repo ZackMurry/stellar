@@ -10,7 +10,9 @@ llvm::Value* ASTVariableDefinition::codegen(llvm::IRBuilder<>* builder,
                                             llvm::LLVMContext* context,
                                             llvm::BasicBlock* entryBlock,
                                             std::map<std::string, llvm::Value*>* namedValues,
-                                            llvm::Module* module) {
+                                            llvm::Module* module,
+                                            map<string, string>* objectTypes,
+                                            map<string, ClassData>* classes) {
     llvm::Type* llvmType = getLLVMTypeByVariableType(type, context);
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);
     namedValues->insert({ name, alloca });

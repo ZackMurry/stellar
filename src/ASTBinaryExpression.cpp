@@ -9,9 +9,11 @@ llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
                                           llvm::LLVMContext* context,
                                           llvm::BasicBlock* entryBlock,
                                           map<string, llvm::Value*>* namedValues,
-                                          llvm::Module* module) {
-    llvm::Value* l = lhs->codegen(builder, context, entryBlock, namedValues, module);
-    llvm::Value* r = rhs->codegen(builder, context, entryBlock, namedValues, module);
+                                          llvm::Module* module,
+                                          map<string, string>* objectTypes,
+                                          map<string, ClassData>* classes) {
+    llvm::Value* l = lhs->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+    llvm::Value* r = rhs->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     switch (op) {
         case OPERATOR_PLUS:
             return builder->CreateAdd(l, r, "addtmp");

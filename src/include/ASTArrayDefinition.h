@@ -21,7 +21,9 @@ public:
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
                          map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module) override;
+                         llvm::Module* module,
+                         map<string, string>* objectTypes,
+                         map<string, ClassData>* classes) override;
 };
 
 

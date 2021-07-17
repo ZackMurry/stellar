@@ -7,6 +7,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <set>
 #include "include/parser.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/FileSystem.h"
@@ -44,12 +45,7 @@ using namespace std;
 
 unsigned long parsingIndex = 0;
 
-struct ClassData {
-    llvm::Type* type = nullptr;
-    map<string, llvm::Type*> fields;
-};
-
-static map<string, ClassData> definedClasses;
+set<string> definedClasses;
 static auto* context = new llvm::LLVMContext();
 
 void printOutOfTokensError() {
@@ -62,23 +58,23 @@ void printFatalErrorMessage(const string& s, vector<Token> tokens) {
     exit(EXIT_FAILURE);
 }
 
-llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* context) {
+llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* ctx) {
     if (type == VARIABLE_TYPE_F) {
-        return llvm::Type::getFloatTy(*context);
+        return llvm::Type::getFloatTy(*ctx);
     } else if (type == VARIABLE_TYPE_D) {
-        return llvm::Type::getDoubleTy(*context);
+        return llvm::Type::getDoubleTy(*ctx);
     } else if (type == VARIABLE_TYPE_I32) {
-        return llvm::Type::getInt32Ty(*context);
+        return llvm::Type::getInt32Ty(*ctx);
     } else if (type == VARIABLE_TYPE_V) {
-        return llvm::Type::getVoidTy(*context);
+        return llvm::Type::getVoidTy(*ctx);
     } else if (type == VARIABLE_TYPE_I8) {
-        return llvm::Type::getInt8Ty(*context);
+        return llvm::Type::getInt8Ty(*ctx);
     } else if (type == VARIABLE_TYPE_I16) {
-        return llvm::Type::getInt16Ty(*context);
+        return llvm::Type::getInt16Ty(*ctx);
     } else if (type == VARIABLE_TYPE_I64) {
-        return llvm::Type::getInt64Ty(*context);
+        return llvm::Type::getInt64Ty(*ctx);
     } else if (type == VARIABLE_TYPE_S) {
-        return llvm::Type::getInt8PtrTy(*context);
+        return llvm::Type::getInt8PtrTy(*ctx);
     } else {
         std::cerr << "Parser: unimplemented type " << type << std::endl;
         exit(EXIT_FAILURE);
@@ -230,6 +226,29 @@ ASTNode* parseExpression(const vector<Token>& tokens) {
     return parseBinOpRHS(tokens, 0, lhs);
 }
 
+int getVariableTypeFromString(const string& type) {
+    if (type == "i32") {
+        return VARIABLE_TYPE_I32;
+    } else if (type == "f") {
+        return VARIABLE_TYPE_F;
+    } else if (type == "d") {
+        return VARIABLE_TYPE_D;
+    } else if (type == "b") {
+        return VARIABLE_TYPE_B;
+    } else if (type == "i8") {
+        return VARIABLE_TYPE_I8;
+    } else if (type == "i16") {
+        return VARIABLE_TYPE_I16;
+    } else if (type == "i64") {
+        return VARIABLE_TYPE_I64;
+    } else if (type == "v") {
+        return VARIABLE_TYPE_V;
+    } else if (type == "s") {
+        return VARIABLE_TYPE_S;
+    } else {
+        return -1;
+    }
+}
 int getVariableTypeFromToken(const Token& token) {
     if (token.type != TOKEN_IDENTIFIER) {
         cout << "Not an identifier" << endl;
@@ -428,7 +447,7 @@ ASTNode* parseClassInstantiation(vector<Token> tokens, const string& className) 
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    return new ASTClassInstantiation(definedClasses[className].type, identifier);
+    return new ASTClassInstantiation(className, identifier);
 }
 
 // Expects parsingIndex to be at '.'
@@ -443,24 +462,15 @@ ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
     }
     // todo myInst.myField.mySubField
     string fieldName = tokens[parsingIndex].value;
-    // todo keep track of objects and their class type
-    ClassData classData = definedClasses.at("MyClass");
-    int i = 0;
-    for (auto & field : classData.fields) {
-        if (field.first == fieldName) {
-            break;
-        }
-        i++;
-    }
     if (++parsingIndex >= tokens.size() || tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
-        return new ASTClassFieldAccess(identifier, classData.type, i);
+        return new ASTClassFieldAccess(identifier, fieldName);
     }
     cout << "Class field store" << endl;
     // Consume '='
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    return new ASTClassFieldStore(identifier, classData.type, i, parseExpression(tokens));
+    return new ASTClassFieldStore(identifier, fieldName, parseExpression(tokens));
 }
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
@@ -472,7 +482,11 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     if (variableType != -1) {
         return parseVariableDeclaration(tokens, (VariableType) variableType);
     }
-    if (definedClasses.count(identifier)) {
+    if (definedClasses.find(identifier) != definedClasses.end()) {
+        // todo: an 'n' keyword that creates a new class to differentiate instantiations from normal assignments
+        // n MyClass myInst
+        // eventually, constructors would work like this:
+        // n MyClass myInst(1, 2, "3", 4.0)
         return parseClassInstantiation(tokens, identifier);
     }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
@@ -704,31 +718,22 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    map<string, llvm::Type*> fields;
-    vector<llvm::Type*> fieldTypes;
+    map<string, string> fields;
+    vector<string> fieldTypes;
     while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "}")) {
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected identifier in class body", tokens);
         }
         string fieldType = tokens[parsingIndex].value;
-        int variableType = getVariableTypeFromToken(tokens[parsingIndex]);
-        if (++parsingIndex >= tokens.size()) {
-            printOutOfTokensError();
-        }
-        llvm::Type* type;
-        if (variableType != -1) {
-            type = getLLVMTypeByVariableType((VariableType) variableType, context);
-        } else if (definedClasses.count(fieldType)) {
-            type = definedClasses[fieldType].type;
-        } else {
-            printFatalErrorMessage("expected field to start with type", tokens);
-        }
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected field name after type", tokens);
         }
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
         string fieldName = tokens[parsingIndex].value;
-        fields.insert({ fieldName, type });
-        fieldTypes.push_back(type);
+        fields.insert({ fieldName, fieldType });
+        fieldTypes.push_back(fieldType);
         cout << "field: " << fieldName << endl;
         // Consume field name
         if (++parsingIndex >= tokens.size()) {
@@ -749,10 +754,8 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             printOutOfTokensError();
         }
         cout << "class" << endl;
-        auto classType = llvm::StructType::create(*context, name);
-        classType->setBody(fieldTypes);
-        definedClasses.insert({ name, { classType, fields } });
-        return new ASTClassDefinition(name);
+        definedClasses.insert(name);
+        return new ASTClassDefinition(name, fields, fieldTypes);
     } else {
         printFatalErrorMessage("expected empty class", tokens);
         return nullptr;
@@ -794,9 +797,11 @@ vector<ASTNode*> parse(vector<Token> tokens) {
     llvm::BasicBlock* entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(entryBlock);
     map<string, llvm::Value*> namedValues;
+    map<string, string> objectsTypes;
+    map<string, ClassData> classes;
     for (auto const &node : nodes) {
         cout << node->toString() << endl;
-        node->codegen(builder, context, entryBlock, &namedValues, module);
+        node->codegen(builder, context, entryBlock, &namedValues, module, &objectsTypes, &classes);
     }
 
     cout << "Adding return to main" << endl;

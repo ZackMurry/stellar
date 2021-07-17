@@ -11,19 +11,20 @@ using namespace std;
 
 class ASTClassFieldStore : public ASTNode {
     string identifier;
-    llvm::Type* classType;
-    int fieldNumber;
+    string fieldName;
     ASTNode* value;
 public:
-    ASTClassFieldStore(string identifier, llvm::Type* classType, int fieldNumber, ASTNode* value) : identifier(move(identifier)), classType(classType), fieldNumber(fieldNumber), value(value) {}
+    ASTClassFieldStore(string identifier, string fieldName, ASTNode* value) : identifier(move(identifier)), fieldName(move(fieldName)), value(value) {}
     string toString() override {
-        return "[CLASS_FIELD_STO: ident: " + identifier + " field: " + to_string(fieldNumber) + " value: " + value->toString() + "]";
+        return "[CLASS_FIELD_STO: ident: " + identifier + " field: " + fieldName + " value: " + value->toString() + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
                          map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module) override;
+                         llvm::Module* module,
+                         map<string, string>* objectTypes,
+                         map<string, ClassData>* classes) override;
 };
 
 

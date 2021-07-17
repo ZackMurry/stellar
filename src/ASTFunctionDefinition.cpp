@@ -10,7 +10,9 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
                                             llvm::LLVMContext* context,
                                             llvm::BasicBlock* entryBlock,
                                             map<string, llvm::Value*>* namedValues,
-                                            llvm::Module* module) {
+                                            llvm::Module* module,
+                                            map<string, string>* objectTypes,
+                                            map<string, ClassData>* classes) {
     cout << "FuncDef codegen" << endl;
     llvm::Function* func = module->getFunction(name);
     if (func && !func->empty()) {
@@ -42,6 +44,10 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     llvm::BasicBlock* bb = llvm::BasicBlock::Create(*context, "entry", func);
     cout << "Created basic block" << endl;
     builder->SetInsertPoint(bb);
+    auto *oldNamedValues = new map<string, llvm::Value*>();
+    for (const auto& namedVal : *namedValues) {
+        oldNamedValues->insert(namedVal);
+    }
     namedValues->clear();
     unsigned index = 0;
     for (auto &arg : func->args()) {
@@ -51,7 +57,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
         namedValues->insert({ string(arg.getName()), alloca });
     }
     for (auto &node : body) {
-        node->codegen(builder, context, entryBlock, namedValues, module);
+        node->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     }
     cout << "For loops done" << endl;
     // If the final block is empty, add a return statement to it so that it is not empty
@@ -61,5 +67,10 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     builder->SetInsertPoint(entryBlock);
     cout << "Verifying function " << name << endl;
     llvm::verifyFunction(*func);
+    // Restore named values
+    namedValues->clear();
+    for (const auto& oldNamedVal : *oldNamedValues) {
+        oldNamedValues->insert(oldNamedVal);
+    }
     return func;
 }

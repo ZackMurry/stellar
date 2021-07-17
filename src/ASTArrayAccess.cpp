@@ -8,8 +8,10 @@ llvm::Value* ASTArrayAccess::codegen(llvm::IRBuilder<>* builder,
                                      llvm::LLVMContext* context,
                                      llvm::BasicBlock* entryBlock,
                                      map<string, llvm::Value*>* namedValues,
-                                     llvm::Module* module) {
-    auto* gep = builder->CreateInBoundsGEP(namedValues->at(name), index->codegen(builder, context, entryBlock, namedValues, module), "acctmp");
+                                     llvm::Module* module,
+                                     map<string, string>* objectTypes,
+                                     map<string, ClassData>* classes) {
+    auto* gep = builder->CreateInBoundsGEP(namedValues->at(name), index->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), "acctmp");
     gep->mutateType(getLLVMPtrTypeByType(namedValues->at(name)->getType()->getPointerElementType(), context));
     return builder->CreateLoad(gep, "loadtmp");
 }

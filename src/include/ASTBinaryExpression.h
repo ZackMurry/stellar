@@ -29,11 +29,13 @@ public:
     string toString() override {
         return "[BIN_EXPRESSION: " + to_string(op) + " " + lhs->toString() + " " + rhs->toString() + "]";
     }
-    llvm::Value *codegen(llvm::IRBuilder<>* builder,
+    llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
                          map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module) override;
+                         llvm::Module* module,
+                         map<string, string>* objectTypes,
+                         map<string, ClassData>* classes) override;
 };
 
 #endif //STELLAR_ASTBINARYEXPRESSION_H

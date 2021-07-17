@@ -11,7 +11,9 @@ llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
                                            llvm::LLVMContext* context,
                                            llvm::BasicBlock* entryBlock,
                                            map<string, llvm::Value*>* namedValues,
-                                           llvm::Module* module) {
+                                           llvm::Module* module,
+                                           map<string, string>* objectTypes,
+                                           map<string, ClassData>* classes) {
     vector<llvm::Type*> argTypes;
     for (const auto& arg : args) {
         llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType(), context);

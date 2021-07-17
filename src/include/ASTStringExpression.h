@@ -17,11 +17,13 @@ public:
     string toString() override {
         return "[STRING: " + val + "]";
     }
-    llvm::Value* codegen(llvm::IRBuilder<>* builder,
+    llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
-                         map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module) override;
+                         std::map<std::string, llvm::Value*>* namedValues,
+                         llvm::Module* module,
+                         map<string, string>* objectTypes,
+                         map<string, ClassData>* classes) override;
 };
 
 

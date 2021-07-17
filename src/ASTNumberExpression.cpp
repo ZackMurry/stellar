@@ -9,7 +9,9 @@ llvm::Value* ASTNumberExpression::codegen(llvm::IRBuilder<>* builder,
                                           llvm::LLVMContext* context,
                                           llvm::BasicBlock* entryBlock,
                                           map<string, llvm::Value*>* namedValues,
-                                          llvm::Module* module) {
+                                          llvm::Module* module,
+                                          map<string, string>* objectTypes,
+                                          map<string, ClassData>* classes) {
     cout << "Number expression codegen" << endl;
     if (type == VARIABLE_TYPE_I32) {
         return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), val, 10);

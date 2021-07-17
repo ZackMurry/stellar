@@ -11,18 +11,19 @@ using namespace std;
 
 class ASTClassFieldAccess : public ASTNode {
     string identifier;
-    llvm::Type* classType;
-    int fieldNumber;
+    string fieldName;
 public:
-    ASTClassFieldAccess(string identifier, llvm::Type* classType, int fieldNumber) : identifier(move(identifier)), classType(classType), fieldNumber(fieldNumber) {}
+    ASTClassFieldAccess(string identifier, string fieldName) : identifier(move(identifier)), fieldName(move(fieldName)) {}
     string toString() override {
-        return "[CLASS_FIELD_ACC: field number " + to_string(fieldNumber) + "]";
+        return "[CLASS_FIELD_ACC: field number " + fieldName + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
                          llvm::BasicBlock* entryBlock,
                          map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module) override;
+                         llvm::Module* module,
+                         map<string, string>* objectTypes,
+                         map<string, ClassData>* classes) override;
 };
 
 
