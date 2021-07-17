@@ -28,13 +28,13 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     if (!func) {
         for (const auto& arg : args) {
             cout << "Processing arg " << arg->getName() << " of type " << arg->getType() << endl;
-            llvm::Type* llvmType;// = getLLVMTypeByVariableType(arg->getType(), context);
+            llvm::Type* llvmType;
             int ivt = getVariableTypeFromString(arg->getType());
             if (ivt != -1) {
                 llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
             } else if (classes->count(arg->getType())) {
                 cout << "Arg " << arg->getName() << " is an object" << endl;
-                llvmType = classes->at(arg->getType()).type;
+                llvmType = llvm::PointerType::get(classes->at(arg->getType()).type, 0);
                 objectTypes->insert({ arg->getName(), arg->getType() });
             } else {
                 cerr << "Error: unknown type " << arg->getType() << endl;
@@ -42,6 +42,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
             }
             argTypes.push_back(llvmType);
         }
+        cout << "Args processed" << endl;
         llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType, context), argTypes, false);
         func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
         unsigned index = 0;
@@ -65,15 +66,9 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     unsigned index = 0;
     for (auto &arg : func->args()) {
         llvm::IRBuilder<> tempBuilder(&func->getEntryBlock(), func->getEntryBlock().begin());
-        if (!arg.getType()->isStructTy()) {
-            cout << "Creating store..." << endl;
-            llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
-            builder->CreateStore(&arg, alloca);
-            namedValues->insert({ string(arg.getName()), alloca });
-        } else {
-            // todo: figure out how to use a struct as a parameter
-//            namedValues->insert({ arg.getName().str(), tempBuilder.CreateAlloca() });
-        }
+        llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
+        builder->CreateStore(&arg, alloca);
+        namedValues->insert({ arg.getName().str(), alloca });
     }
     cout << "Args initialized" << endl;
     for (auto &node : body) {

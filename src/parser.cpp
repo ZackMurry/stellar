@@ -41,8 +41,10 @@
 using namespace std;
 
 // todo: boolean literals (true, false)
-// todo: class methods with this passed in as a parameter (maybe implicitly, maybe explicitly)
 // todo: MyClass myInst = myOtherInst
+// todo: parse method calls (myInst.myMethod()) instead of having to manually invoke (MyClass__myMethod(myInst))
+// todo: constructors
+// todo: returning objects
 
 unsigned long parsingIndex = 0;
 
@@ -308,7 +310,6 @@ vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
 }
 
 // Expects the parsingIndex to be at an opening parenthesis
-// todo: returning objects
 ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const string& name) {
     cout << "Function definition" << endl;
     vector<ASTVariableDefinition*> args;
@@ -738,15 +739,16 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             printOutOfTokensError();
         }
         string fieldName = tokens[parsingIndex].value;
-        fields.insert({ fieldName, fieldType });
-        cout << "field: " << fieldName << endl;
         // Consume field name
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
-            cout << "Method definition" << endl;
+            cout << "method: " << fieldName << endl;
             methods.insert({ fieldName, (ASTFunctionDefinition*) parseFunctionDefinition(tokens, (VariableType) getVariableTypeFromString(fieldType), fieldName) });
+        } else {
+            cout << "field: " << fieldName << endl;
+            fields.insert({ fieldName, fieldType });
         }
         if (tokens[parsingIndex].type != TOKEN_NEWLINE) {
             printFatalErrorMessage("expected new line after field or method declaration", tokens);

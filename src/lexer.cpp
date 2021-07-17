@@ -227,7 +227,7 @@ struct Token readToken() {
         return token;
     }
 
-    while (lexingIndex < content.size() && isalnum(ch)) {
+    while (lexingIndex < content.size() && (isalnum(ch) || ch == '_')) {
         word += (char) ch;
         consumeChar();
         if (lexingIndex >= content.size()) {
