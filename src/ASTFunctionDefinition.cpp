@@ -19,12 +19,25 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
         cerr << "Error: function " << name << " cannot be redefined" << endl;
         exit(EXIT_FAILURE);
     }
+    map<string, string> oldObjTypes;
+    for (const auto& objType : *objectTypes) {
+        oldObjTypes.insert(objType);
+    }
+    objectTypes->clear();
     vector<llvm::Type*> argTypes;
     if (!func) {
         for (const auto& arg : args) {
-            llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType(), context);
-            if (llvmType == nullptr) {
-                cerr << "Error mapping variable type to LLVM type" << endl;
+            cout << "Processing arg " << arg->getName() << " of type " << arg->getType() << endl;
+            llvm::Type* llvmType;// = getLLVMTypeByVariableType(arg->getType(), context);
+            int ivt = getVariableTypeFromString(arg->getType());
+            if (ivt != -1) {
+                llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
+            } else if (classes->count(arg->getType())) {
+                cout << "Arg " << arg->getName() << " is an object" << endl;
+                llvmType = classes->at(arg->getType()).type;
+                objectTypes->insert({ arg->getName(), arg->getType() });
+            } else {
+                cerr << "Error: unknown type " << arg->getType() << endl;
                 exit(EXIT_FAILURE);
             }
             argTypes.push_back(llvmType);
@@ -52,14 +65,21 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     unsigned index = 0;
     for (auto &arg : func->args()) {
         llvm::IRBuilder<> tempBuilder(&func->getEntryBlock(), func->getEntryBlock().begin());
-        llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
-        builder->CreateStore(&arg, alloca);
-        namedValues->insert({ string(arg.getName()), alloca });
+        if (!arg.getType()->isStructTy()) {
+            cout << "Creating store..." << endl;
+            llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
+            builder->CreateStore(&arg, alloca);
+            namedValues->insert({ string(arg.getName()), alloca });
+        } else {
+            // todo: figure out how to use a struct as a parameter
+//            namedValues->insert({ arg.getName().str(), tempBuilder.CreateAlloca() });
+        }
     }
+    cout << "Args initialized" << endl;
     for (auto &node : body) {
         node->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     }
-    cout << "For loops done" << endl;
+    cout << "Function codegen done" << endl;
     // If the final block is empty, add a return statement to it so that it is not empty
     if (builder->GetInsertBlock()->empty() || !builder->GetInsertBlock()->end()->isTerminator()) {
         builder->CreateRetVoid();
@@ -69,8 +89,12 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     llvm::verifyFunction(*func);
     // Restore named values
     namedValues->clear();
+    objectTypes->clear();
     for (const auto& oldNamedVal : *oldNamedValues) {
-        oldNamedValues->insert(oldNamedVal);
+        namedValues->insert(oldNamedVal);
+    }
+    for (const auto& oldObjType : oldObjTypes) {
+        objectTypes->insert(oldObjType);
     }
     return func;
 }

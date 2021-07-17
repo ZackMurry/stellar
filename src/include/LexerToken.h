@@ -18,7 +18,8 @@ enum TokenType {
     TOKEN_IF,
     TOKEN_ELSE,
     TOKEN_STRING,
-    TOKEN_CLASS
+    TOKEN_CLASS,
+    TOKEN_NEW
 };
 
 struct Token {

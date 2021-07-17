@@ -16,7 +16,16 @@ llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
                                            map<string, ClassData>* classes) {
     vector<llvm::Type*> argTypes;
     for (const auto& arg : args) {
-        llvm::Type* llvmType = getLLVMTypeByVariableType(arg->getType(), context);
+        llvm::Type* llvmType;// = getLLVMTypeByVariableType(arg->getType(), context);
+        int ivt = getVariableTypeFromString(arg->getType());
+        if (ivt != -1) {
+            llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
+        } else if (classes->count(arg->getType())) {
+            llvmType = classes->at(arg->getType()).type;
+        } else {
+            cerr << "Error: unknown type " << arg->getType() << endl;
+            exit(EXIT_FAILURE);
+        }
         if (llvmType == nullptr) {
             cerr << "Error mapping variable type to LLVM type" << endl;
             exit(EXIT_FAILURE);

@@ -2,6 +2,8 @@
 // Created by zack on 7/9/21.
 //
 
+#include <utility>
+
 #include "parser.h"
 #include "ASTVariableDefinition.h"
 
@@ -36,6 +38,18 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    void setName(const string& n) {
+        this->name = n;
+    }
+    vector<ASTVariableDefinition*> getArgs() {
+        return args;
+    }
+    void setArgs(vector<ASTVariableDefinition*> a) {
+        this->args = move(a);
+    }
+    void addArg(ASTVariableDefinition* arg) {
+        this->args.push_back(arg);
+    }
 };
 
 

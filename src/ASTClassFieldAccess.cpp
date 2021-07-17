@@ -15,6 +15,7 @@ llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
         cerr << "Error: undeclared identifier " << identifier << endl;
         exit(EXIT_FAILURE);
     }
+    cout << "Accessing field " << fieldName << " of " << identifier << endl;
     auto classData = classes->at(objectTypes->at(identifier));
     int fieldNumber = -1;
     int i = 0;
@@ -30,6 +31,7 @@ llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
         exit(EXIT_FAILURE);
     }
     vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*context, llvm::APInt(32, fieldNumber)) };
+    cout << "Creating GEP" << endl;
     llvm::Value* gep = builder->CreateGEP(builder->CreateLoad(namedValues->at(identifier)), elementIndex);
     return builder->CreateLoad(gep);
 }

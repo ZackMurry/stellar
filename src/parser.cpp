@@ -7,7 +7,6 @@
 #include <iostream>
 #include <map>
 #include <string>
-#include <set>
 #include "include/parser.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/FileSystem.h"
@@ -42,10 +41,11 @@
 using namespace std;
 
 // todo: boolean literals (true, false)
+// todo: class methods with this passed in as a parameter (maybe implicitly, maybe explicitly)
+// todo: MyClass myInst = myOtherInst
 
 unsigned long parsingIndex = 0;
 
-set<string> definedClasses;
 static auto* context = new llvm::LLVMContext();
 
 void printOutOfTokensError() {
@@ -308,6 +308,7 @@ vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
 }
 
 // Expects the parsingIndex to be at an opening parenthesis
+// todo: returning objects
 ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const string& name) {
     cout << "Function definition" << endl;
     vector<ASTVariableDefinition*> args;
@@ -318,15 +319,15 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const 
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected type in function parameter", tokens);
         }
-        int ivt = getVariableTypeFromToken(tokens[parsingIndex]);
-        if (ivt == -1) {
-            printFatalErrorMessage("expected type in function parameter", tokens);
+        string paramType = tokens[parsingIndex].value;
+        cout << "param type " << paramType << endl;
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
         }
-        parsingIndex++;
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected parameter name after type", tokens);
         }
-        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
+        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, paramType));
         cout << "arg: " << args.back()->getName() << endl;
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
@@ -377,11 +378,12 @@ ASTNode* parseArrayDefinition(vector<Token> tokens, VariableType type) {
     return new ASTArrayDefinition(name, type, length);
 }
 
-ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
+ASTNode* parseVariableDeclaration(vector<Token> tokens, const string& type) {
     cout << "Variable declaration: " << parsingIndex << endl;
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
         cout << "Array definition" << endl;
-        return parseArrayDefinition(tokens, type);
+        int ivt = getVariableTypeFromString(type);
+        return parseArrayDefinition(tokens, (VariableType) ivt);
     }
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
         printFatalErrorMessage("expected identifier after variable type but found token type " + to_string(tokens[parsingIndex].type) + ":" + tokens[parsingIndex].value, tokens);
@@ -390,9 +392,8 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
         cout << "Function definition" << endl;
         // todo returning arrays from functions
-        return parseFunctionDefinition(tokens, type, name);
-    } else if (type == VARIABLE_TYPE_V) {
-        printFatalErrorMessage("only functions prototypes can use the 'v' type", tokens);
+        int ivt = getVariableTypeFromString(type);
+        return parseFunctionDefinition(tokens, (VariableType) ivt, name);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_NEWLINE) {
@@ -403,7 +404,8 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, VariableType type) {
         }
     }
     parsingIndex++; // Consume '='
-    return new ASTVariableDeclaration(name, type, parseExpression(tokens));
+    int ivt = getVariableTypeFromString(type);
+    return new ASTVariableDeclaration(name, (VariableType) ivt, parseExpression(tokens));
 }
 
 // Expects current token to be the equals sign in 'a = E'
@@ -439,9 +441,21 @@ ASTNode* parseArrayAccess(vector<Token> tokens, string name) {
     return new ASTArrayAccess(move(name), index);
 }
 
-// Expects parsingIndex to be after the class name (at the variable name)
-ASTNode* parseClassInstantiation(vector<Token> tokens, const string& className) {
+// Expects parsingIndex to be at 'n'
+ASTNode* parseClassInstantiation(vector<Token> tokens) {
     cout << "Class instantiation" << endl;
+    // Consume 'n'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        printFatalErrorMessage("cannot instantiate unknown class", tokens);
+    }
+    string className = tokens[parsingIndex].value;
+    // Consume class name
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
     string identifier = tokens[parsingIndex].value;
     // Consume identifier
     if (++parsingIndex >= tokens.size()) {
@@ -480,14 +494,7 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
         printOutOfTokensError();
     }
     if (variableType != -1) {
-        return parseVariableDeclaration(tokens, (VariableType) variableType);
-    }
-    if (definedClasses.find(identifier) != definedClasses.end()) {
-        // todo: an 'n' keyword that creates a new class to differentiate instantiations from normal assignments
-        // n MyClass myInst
-        // eventually, constructors would work like this:
-        // n MyClass myInst(1, 2, "3", 4.0)
-        return parseClassInstantiation(tokens, identifier);
+        return parseVariableDeclaration(tokens, identifier);
     }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
         return parseVariableAssignment(tokens, identifier);
@@ -574,15 +581,14 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected type in function parameter", tokens);
         }
-        int ivt = getVariableTypeFromToken(tokens[parsingIndex]);
-        if (ivt == -1 || ivt == VARIABLE_TYPE_V) {
-            printFatalErrorMessage("expected type in function parameter", tokens);
+        string type = tokens[parsingIndex].value;
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
         }
-        parsingIndex++;
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected parameter name after type", tokens);
         }
-        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, (VariableType) ivt));
+        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, type));
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
@@ -719,7 +725,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         printOutOfTokensError();
     }
     map<string, string> fields;
-    vector<string> fieldTypes;
+    map<string, ASTFunctionDefinition*> methods;
     while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "}")) {
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected identifier in class body", tokens);
@@ -733,14 +739,17 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         }
         string fieldName = tokens[parsingIndex].value;
         fields.insert({ fieldName, fieldType });
-        fieldTypes.push_back(fieldType);
         cout << "field: " << fieldName << endl;
         // Consume field name
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
+            cout << "Method definition" << endl;
+            methods.insert({ fieldName, (ASTFunctionDefinition*) parseFunctionDefinition(tokens, (VariableType) getVariableTypeFromString(fieldType), fieldName) });
+        }
         if (tokens[parsingIndex].type != TOKEN_NEWLINE) {
-            printFatalErrorMessage("expected new line after field declaration", tokens);
+            printFatalErrorMessage("expected new line after field or method declaration", tokens);
         }
         // Consume newline
         if (++parsingIndex >= tokens.size()) {
@@ -754,8 +763,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             printOutOfTokensError();
         }
         cout << "class" << endl;
-        definedClasses.insert(name);
-        return new ASTClassDefinition(name, fields, fieldTypes);
+        return new ASTClassDefinition(name, fields, methods);
     } else {
         printFatalErrorMessage("expected empty class", tokens);
         return nullptr;
@@ -778,6 +786,8 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
             nodes.push_back(parseIfExpression(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_CLASS) {
             nodes.push_back(parseClassDefinition(tokens));
+        } else if (tokens[parsingIndex].type == TOKEN_NEW) {
+            nodes.push_back(parseClassInstantiation(tokens));
         } else {
             cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
             parsingIndex++;

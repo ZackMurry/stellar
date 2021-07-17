@@ -13,23 +13,39 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
                                          map<string, ClassData>* classes) {
     auto classType = llvm::StructType::create(*context, name);
     vector<llvm::Type*> fieldLLVMTypes;
-    map<string, llvm::Type*> LLVMFields;
+    map<string, llvm::Type*> llvmFields;
     for (const auto& field : fields) {
         int variableType = getVariableTypeFromString(field.second);
         if (variableType != -1) {
             auto t = getLLVMTypeByVariableType((VariableType) variableType, context);
             fieldLLVMTypes.push_back(t);
-            LLVMFields.insert({ field.first, t });
+            llvmFields.insert({field.first, t });
         } else if (classes->count(field.second)) {
             auto t = classes->at(field.second).type;
             fieldLLVMTypes.push_back(t);
-            LLVMFields.insert({ field.first, t });
+            llvmFields.insert({field.first, t });
         } else {
             cerr << "Error: expected type for field type but instead found " << field.second;
             exit(EXIT_FAILURE);
         }
     }
     classType->setBody(fieldLLVMTypes);
-    classes->insert({ name, { classType, LLVMFields } });
+    classes->insert({ name, {classType, llvmFields } });
+
+    // Methods
+    map<string, llvm::Function*> llvmMethods;
+    for (const auto& method : methods) {
+        // Prepend class name to function name
+        method.second->setName(name + "__" + method.first);
+
+        // Add "t" arg for reference to the class
+        method.second->addArg(new ASTVariableDefinition("t", name));
+        cout << "arg length: " << method.second->getArgs().size() << endl;
+
+        auto m = (llvm::Function*) method.second->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        llvmMethods.insert({ name, m });
+    }
+    classes->erase(name);
+    classes->insert({ name, {classType, llvmFields, llvmMethods } });
     return nullptr;
 }

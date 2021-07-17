@@ -30,6 +30,7 @@ enum VariableType {
 struct ClassData {
     llvm::Type* type;
     map<string, llvm::Type*> fields;
+    map<string, llvm::Function*> methods;
 };
 
 llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* context);

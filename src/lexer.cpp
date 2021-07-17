@@ -260,6 +260,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "n") {
+        token.type = TOKEN_NEW;
+        token.value = "";
+        return token;
+    }
     if (word == "if") {
         token.type = TOKEN_IF;
         token.value = "";
