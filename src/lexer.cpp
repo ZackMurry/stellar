@@ -38,6 +38,24 @@ struct Token readToken() {
     token.row = row;
     token.column = column;
     char ch = content.at(lexingIndex);
+
+    if (ch == '/') {
+        if (lexingIndex + 1 >= content.size()) {
+            cerr << "Error: unexpected end of file" << endl;
+            exit(EXIT_FAILURE);
+        }
+        if (content.at(lexingIndex + 1) == '/') {
+            consumeChar(); // Consume first '/'
+            consumeChar(); // Consume second '/'
+            while (lexingIndex < content.size() && content.at(lexingIndex) != '\n' && content.at(lexingIndex) != EOF) {
+                consumeChar();
+            }
+            consumeChar(); // Consume newline
+            token.type = TOKEN_NEWLINE;
+            return token;
+        }
+    }
+
     if (ch == '=') {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
