@@ -47,6 +47,6 @@ llvm::Type* getLLVMPtrTypeByType(llvm::Type* type, llvm::LLVMContext* context) {
             return llvm::Type::getDoublePtrTy(*context);
         }
     }
-    cerr << "Error: unknown type" << endl;
+    cerr << "Error: unknown type to convert to pointer" << endl;
     exit(EXIT_FAILURE);
 }

@@ -1,21 +1,20 @@
 //
-// Created by zack on 7/15/21.
+// Created by zack on 7/18/21.
 //
 
 #include "parser.h"
-#include <string>
-#ifndef STELLAR_ASTCLASSFIELDACCESS_H
-#define STELLAR_ASTCLASSFIELDACCESS_H
+#ifndef STELLAR_ASTCLASSFIELDARRAYACCESS_H
+#define STELLAR_ASTCLASSFIELDARRAYACCESS_H
 
-using namespace std;
 
-class ASTClassFieldAccess : public ASTNode {
+class ASTClassFieldArrayAccess : public ASTNode {
     string identifier;
     string fieldName;
+    ASTNode* index;
 public:
-    ASTClassFieldAccess(string identifier, string fieldName) : identifier(move(identifier)), fieldName(move(fieldName)) {}
+    ASTClassFieldArrayAccess(string identifier, string fieldName, ASTNode* index) : identifier(move(identifier)), fieldName(move(fieldName)), index(index) {}
     string toString() override {
-        return "[CLASS_FIELD_ACC: field: " + fieldName + "]";
+        return "[CLASS_FIELD_ARR_ACC: field: " + fieldName + " identifier: " + identifier + " index: " + index->toString() + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
@@ -27,4 +26,4 @@ public:
 };
 
 
-#endif //STELLAR_ASTCLASSFIELDACCESS_H
+#endif //STELLAR_ASTCLASSFIELDARRAYACCESS_H

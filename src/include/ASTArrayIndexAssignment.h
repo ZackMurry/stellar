@@ -6,8 +6,6 @@
 #ifndef STELLAR_ASTARRAYINDEXASSIGNMENT_H
 #define STELLAR_ASTARRAYINDEXASSIGNMENT_H
 
-using namespace std;
-
 class ASTArrayIndexAssignment : public ASTNode {
     string name;
     ASTNode* index;

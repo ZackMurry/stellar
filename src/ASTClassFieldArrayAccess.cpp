@@ -1,10 +1,11 @@
 //
-// Created by zack on 7/15/21.
+// Created by zack on 7/18/21.
 //
 
-#include "include/ASTClassFieldAccess.h"
+#include "include/ASTClassFieldArrayAccess.h"
+#include "include/ASTArrayAccess.h"
 
-llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
+llvm::Value* ASTClassFieldArrayAccess::codegen(llvm::IRBuilder<> *builder,
                                           llvm::LLVMContext *context,
                                           llvm::BasicBlock *entryBlock,
                                           map<string, llvm::Value *> *namedValues,
@@ -33,9 +34,7 @@ llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
     vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*context, llvm::APInt(32, fieldNumber)) };
     cout << "Creating GEP" << endl;
     llvm::Value* gep = builder->CreateGEP(builder->CreateLoad(namedValues->at(identifier)), elementIndex);
-    if (gep->getType()->getPointerElementType()->isPointerTy()) {
-        cout << "Pointer to pointer **" << endl;
-        return gep;
-    }
-    return builder->CreateLoad(gep);
+    auto* arrGep = builder->CreateInBoundsGEP(gep, index->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), "acctmp");
+//    arrGep->mutateType(getLLVMPtrTypeByType(gep->getType()->getPointerElementType(), context));
+    return builder->CreateLoad(arrGep);
 }

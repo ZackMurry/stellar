@@ -24,6 +24,8 @@
 #include "include/ASTBinaryExpression.h"
 #include "include/ASTClassDefinition.h"
 #include "include/ASTClassFieldAccess.h"
+#include "include/ASTClassFieldArrayAccess.h"
+#include "include/ASTClassFieldArrayStore.h"
 #include "include/ASTClassFieldStore.h"
 #include "include/ASTClassInstantiation.h"
 #include "include/ASTExternDeclaration.h"
@@ -43,6 +45,8 @@ using namespace std;
 
 // todo: boolean literals (true, false)
 // todo: constructors
+// todo: arrays as class fields
+// todo: MyClass[]
 
 unsigned long parsingIndex = 0;
 
@@ -355,8 +359,37 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, const string& type, const
     return new ASTFunctionDefinition(name, args, body, type);
 }
 
+
+// Expects parsingIndex to be at '['
+ASTNode* parseArrayAccess(vector<Token> tokens, string name) {
+    cout << "Array access" << endl;
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    ASTNode* index = parseExpression(tokens);
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
+        printFatalErrorMessage("expected ']' after array index", tokens);
+    }
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
+        // Consume '='
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        return new ASTArrayIndexAssignment(move(name), index, parseExpression(tokens));
+    }
+    return new ASTArrayAccess(move(name), index);
+}
+
 // Expects parsingIndex to be at [
-ASTNode* parseArrayDefinition(vector<Token> tokens, VariableType type) {
+ASTNode* parseArrayDefinition(vector<Token> tokens, const string& type) {
+    cout << "Array definition" << endl;
+    int ivt = getVariableTypeFromString(type);
+    if (ivt == -1) {
+        return parseArrayAccess(tokens, type);
+    }
     // Consume '['
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
@@ -374,15 +407,14 @@ ASTNode* parseArrayDefinition(vector<Token> tokens, VariableType type) {
         printFatalErrorMessage("expected identifier after array type", tokens);
     }
     string name = tokens[parsingIndex++].value; // Consume name
-    return new ASTArrayDefinition(name, type, length);
+    return new ASTArrayDefinition(name, (VariableType) ivt, length);
 }
 
 ASTNode* parseVariableDeclaration(vector<Token> tokens, const string& type) {
     cout << "Variable declaration: " << parsingIndex << endl;
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
         cout << "Array definition" << endl;
-        int ivt = getVariableTypeFromString(type);
-        return parseArrayDefinition(tokens, (VariableType) ivt);
+        return parseArrayDefinition(tokens, type);
     }
     if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
         printFatalErrorMessage("expected identifier after variable type but found token type " + to_string(tokens[parsingIndex].type) + ":" + tokens[parsingIndex].value, tokens);
@@ -412,30 +444,6 @@ ASTNode* parseVariableAssignment(vector<Token> tokens, string name) {
     }
     parsingIndex++; // Consume '='
     return new ASTVariableAssignment(move(name), parseExpression(tokens));
-}
-
-// Expects parsingIndex to be at '['
-ASTNode* parseArrayAccess(vector<Token> tokens, string name) {
-    cout << "Array access" << endl;
-    // Consume '['
-    if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
-    }
-    ASTNode* index = parseExpression(tokens);
-    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
-        printFatalErrorMessage("expected ']' after array index", tokens);
-    }
-    if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
-    }
-    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
-        // Consume '='
-        if (++parsingIndex >= tokens.size()) {
-            printOutOfTokensError();
-        }
-        return new ASTArrayIndexAssignment(move(name), index, parseExpression(tokens));
-    }
-    return new ASTArrayAccess(move(name), index);
 }
 
 // Expects parsingIndex to be at 'n'
@@ -504,9 +512,33 @@ ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
     }
     // todo myInst.myField.mySubField
     string fieldName = tokens[parsingIndex].value;
-    if (++parsingIndex >= tokens.size() || tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
+    if (++parsingIndex >= tokens.size()) {
+        return new ASTClassFieldAccess(identifier, fieldName);
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             return parseMethodCall(tokens, identifier, fieldName);
+        } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
+            // Consume '['
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            ASTNode* index = parseExpression(tokens);
+            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
+                printFatalErrorMessage("expected ']' after array index", tokens);
+            }
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            // todo: ASTClassFieldArrayStore
+            if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
+                // Consume '='
+                if (++parsingIndex >= tokens.size()) {
+                    printOutOfTokensError();
+                }
+                return new ASTClassFieldArrayStore(identifier, move(fieldName), index, parseExpression(tokens));
+            }
+            return new ASTClassFieldArrayAccess(identifier, move(fieldName), index);
         }
         return new ASTClassFieldAccess(identifier, fieldName);
     }
@@ -533,9 +565,6 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
         cout << "Variable expression" << endl;
-        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
-            return parseArrayAccess(tokens, identifier);
-        }
         return new ASTVariableExpression(identifier);
     }
     cout << "Function invocation" << endl;
@@ -766,6 +795,24 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         }
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
+            cout << "Array field" << endl;
+            // Consume '['
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
+                printFatalErrorMessage("expected ']' after array opening for class field (note: arrays as fields are not initialized and thus do not have a length)", tokens);
+            }
+            // Consume ']'
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            fieldType += "[]";
+        }
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            printFatalErrorMessage("expected identifier for field name", tokens);
         }
         string fieldName = tokens[parsingIndex].value;
         // Consume field name

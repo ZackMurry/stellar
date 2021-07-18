@@ -4,6 +4,10 @@
 
 #include "include/ASTClassDefinition.h"
 
+bool isArrayType(const string& s) {
+    return s.at(s.length() - 2) == '[' && s.at(s.length() - 1) == ']';
+}
+
 llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
                                          llvm::LLVMContext *context,
                                          llvm::BasicBlock *entryBlock,
@@ -24,6 +28,13 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
             auto t = classes->at(field.second).type;
             fieldLLVMTypes.push_back(t);
             llvmFields.insert({field.first, t });
+        } else if (isArrayType(field.second)) {
+            cout << "Array field type" << endl;
+            string elType = field.second.substr(0, field.second.length() - 2); // Remove []
+            variableType = getVariableTypeFromString(elType);
+            auto ptrType = llvm::PointerType::get(getLLVMTypeByVariableType((VariableType) variableType, context), 0);
+            fieldLLVMTypes.push_back(ptrType);
+            llvmFields.insert({ field.first, ptrType });
         } else {
             cerr << "Error: expected type for field type but instead found " << field.second;
             exit(EXIT_FAILURE);

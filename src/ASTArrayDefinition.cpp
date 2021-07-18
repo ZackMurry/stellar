@@ -12,8 +12,17 @@ llvm::Value* ASTArrayDefinition::codegen(llvm::IRBuilder<>* builder,
                                          map<string, string>* objectTypes,
                                          map<string, ClassData>* classes) {
     llvm::Type* llvmElType = getLLVMTypeByVariableType(elementType, context);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmElType, length->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), name);
-    namedValues->insert({ name, alloca });
-    return alloca;
+    auto alloca = builder->CreateAlloca(llvmElType, nullptr, "new_arr");
+    auto inst = llvm::CallInst::CreateMalloc(
+            builder->GetInsertBlock(),
+            llvm::Type::getInt64PtrTy(*context),
+            llvmElType,
+            llvm::ConstantExpr::getSizeOf(llvmElType),
+            length->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes),
+            nullptr,
+            "arr_malloc");
+    builder->CreateStore(builder->Insert(inst), alloca);
+    namedValues->insert({ name, inst });
+    return inst;
 }
 

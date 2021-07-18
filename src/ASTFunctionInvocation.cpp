@@ -14,6 +14,19 @@ llvm::Value* ASTFunctionInvocation::codegen(llvm::IRBuilder<>* builder,
                                             llvm::Module* module,
                                             map<string, string>* objectTypes,
                                             map<string, ClassData>* classes) {
+    if (name == "__init_arr") {
+        cout << "__init_arr :)" << endl;
+        auto targetArr = args[0]->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        auto inst = llvm::CallInst::CreateMalloc(
+                builder->GetInsertBlock(),
+                llvm::Type::getInt64PtrTy(*context),
+                targetArr->getType()->getPointerElementType(),
+                llvm::ConstantExpr::getSizeOf(targetArr->getType()->getPointerElementType()),
+                nullptr,
+                nullptr,
+                "arr_malloc");
+        return builder->CreateStore(builder->Insert(inst), targetArr);
+    }
     llvm::Function* calleeFunc = module->getFunction(name);
     if (!calleeFunc) {
         cerr << "Error: unknown reference to " << name << endl;
