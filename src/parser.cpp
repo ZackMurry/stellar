@@ -42,9 +42,7 @@
 using namespace std;
 
 // todo: boolean literals (true, false)
-// todo: MyClass myInst = myOtherInst
 // todo: constructors
-// todo: returning objects
 
 unsigned long parsingIndex = 0;
 
@@ -310,7 +308,7 @@ vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
 }
 
 // Expects the parsingIndex to be at an opening parenthesis
-ASTNode* parseFunctionDefinition(vector<Token> tokens, VariableType type, const string& name) {
+ASTNode* parseFunctionDefinition(vector<Token> tokens, const string& type, const string& name) {
     cout << "Function definition" << endl;
     vector<ASTVariableDefinition*> args;
     while (++parsingIndex < tokens.size()) {
@@ -393,8 +391,7 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, const string& type) {
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
         cout << "Function definition" << endl;
         // todo returning arrays from functions
-        int ivt = getVariableTypeFromString(type);
-        return parseFunctionDefinition(tokens, (VariableType) ivt, name);
+        return parseFunctionDefinition(tokens, type, name);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_NEWLINE) {
@@ -405,8 +402,7 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, const string& type) {
         }
     }
     parsingIndex++; // Consume '='
-    int ivt = getVariableTypeFromString(type);
-    return new ASTVariableDeclaration(name, (VariableType) ivt, parseExpression(tokens));
+    return new ASTVariableDeclaration(name, type, parseExpression(tokens));
 }
 
 // Expects current token to be the equals sign in 'a = E'
@@ -524,11 +520,10 @@ ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value; // Get and consume identifier
-    int variableType = getVariableTypeFromToken(tokens[parsingIndex]);
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    if (variableType != -1) {
+    if (tokens[parsingIndex].type == TOKEN_IDENTIFIER || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[")) {
         return parseVariableDeclaration(tokens, identifier);
     }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
@@ -779,7 +774,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         }
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
-            methods.insert({ fieldName, (ASTFunctionDefinition*) parseFunctionDefinition(tokens, (VariableType) getVariableTypeFromString(fieldType), fieldName) });
+            methods.insert({ fieldName, (ASTFunctionDefinition*) parseFunctionDefinition(tokens, fieldType, fieldName) });
         } else {
             cout << "field: " << fieldName << endl;
             fields.insert({ fieldName, fieldType });

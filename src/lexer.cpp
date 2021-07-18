@@ -52,6 +52,8 @@ struct Token readToken() {
             }
             consumeChar(); // Consume newline
             token.type = TOKEN_NEWLINE;
+            row++;
+            column = 0;
             return token;
         }
     }

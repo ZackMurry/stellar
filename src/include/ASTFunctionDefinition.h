@@ -16,9 +16,9 @@ class ASTFunctionDefinition : public ASTNode {
     string name;
     vector<ASTVariableDefinition*> args;
     vector<ASTNode*> body;
-    VariableType returnType;
+    string returnType;
 public:
-    ASTFunctionDefinition(string name, vector<ASTVariableDefinition*> args, vector<ASTNode*> body, VariableType returnType) : name(move(name)), args(move(args)), body(move(body)), returnType(returnType) {}
+    ASTFunctionDefinition(string name, vector<ASTVariableDefinition*> args, vector<ASTNode*> body, string returnType) : name(move(name)), args(move(args)), body(move(body)), returnType(move(returnType)) {}
     string toString() override {
         string s = "[FUN_DEF: " + name + " args: [";
         for (const auto& arg : args) {

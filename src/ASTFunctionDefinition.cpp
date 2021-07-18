@@ -43,7 +43,21 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
             argTypes.push_back(llvmType);
         }
         cout << "Args processed" << endl;
-        llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType, context), argTypes, false);
+        llvm::Type* llvmReturnType;
+        int rtt = getVariableTypeFromString(returnType);
+        if (rtt != -1) {
+            llvmReturnType = getLLVMTypeByVariableType((VariableType) rtt, context);
+        } else if (classes->count(returnType)) {
+            cout << "Function returns object" << endl;
+            // https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/basic-constructs/functions.html
+            // This says that you need to use the return value as a parameter to the function to implement returning objects,
+            // but returning a pointer seems to work fine. They might have been only talking about pass-by-value
+            llvmReturnType = llvm::PointerType::get(classes->at(returnType).type, 0);
+        } else {
+            cerr << "Error: unknown return type " << returnType << endl;
+            exit(EXIT_FAILURE);
+        }
+        llvm::FunctionType* ft = llvm::FunctionType::get(llvmReturnType, argTypes, false);
         func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
         unsigned index = 0;
         for (auto &arg : func->args()) {

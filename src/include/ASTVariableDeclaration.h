@@ -12,12 +12,12 @@ using namespace std;
 
 class ASTVariableDeclaration : public ASTNode {
     std::string name;
-    VariableType type;
+    string type;
     ASTNode* value;
 public:
-    ASTVariableDeclaration(string name, VariableType type, ASTNode* value) : name(move(name)), type(type), value(value) {}
+    ASTVariableDeclaration(string name, string type, ASTNode* value) : name(move(name)), type(move(type)), value(value) {}
     string toString() override {
-        return "[VAR_DECL: " + name + " " + to_string(type) + " " + value->toString() + "]";
+        return "[VAR_DECL: " + name + " " + type + " " + value->toString() + "]";
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
