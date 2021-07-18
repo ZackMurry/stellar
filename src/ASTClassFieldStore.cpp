@@ -15,7 +15,7 @@ llvm::Value* ASTClassFieldStore::codegen(llvm::IRBuilder<> *builder,
     int fieldNumber = -1;
     int i = 0;
     for (const auto& f : classData.fields) {
-        if (f.first == fieldName) {
+        if (f.name == fieldName) {
             fieldNumber = i;
             break;
         }

@@ -20,7 +20,7 @@ llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
     int fieldNumber = -1;
     int i = 0;
     for (const auto& f : classData.fields) {
-        if (f.first == fieldName) {
+        if (f.name == fieldName) {
             fieldNumber = i;
             break;
         }
@@ -33,9 +33,5 @@ llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
     vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*context, llvm::APInt(32, fieldNumber)) };
     cout << "Creating GEP" << endl;
     llvm::Value* gep = builder->CreateGEP(builder->CreateLoad(namedValues->at(identifier)), elementIndex);
-    if (gep->getType()->getPointerElementType()->isPointerTy()) {
-        cout << "Pointer to pointer **" << endl;
-        return gep;
-    }
     return builder->CreateLoad(gep);
 }

@@ -24,8 +24,6 @@
 #include "include/ASTBinaryExpression.h"
 #include "include/ASTClassDefinition.h"
 #include "include/ASTClassFieldAccess.h"
-#include "include/ASTClassFieldArrayAccess.h"
-#include "include/ASTClassFieldArrayStore.h"
 #include "include/ASTClassFieldStore.h"
 #include "include/ASTClassInstantiation.h"
 #include "include/ASTExternDeclaration.h"
@@ -45,7 +43,6 @@ using namespace std;
 
 // todo: boolean literals (true, false)
 // todo: constructors
-// todo: arrays as class fields
 // todo: MyClass[]
 
 unsigned long parsingIndex = 0;
@@ -518,27 +515,6 @@ ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             return parseMethodCall(tokens, identifier, fieldName);
-        } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
-            // Consume '['
-            if (++parsingIndex >= tokens.size()) {
-                printOutOfTokensError();
-            }
-            ASTNode* index = parseExpression(tokens);
-            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
-                printFatalErrorMessage("expected ']' after array index", tokens);
-            }
-            if (++parsingIndex >= tokens.size()) {
-                printOutOfTokensError();
-            }
-            // todo: ASTClassFieldArrayStore
-            if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "=") {
-                // Consume '='
-                if (++parsingIndex >= tokens.size()) {
-                    printOutOfTokensError();
-                }
-                return new ASTClassFieldArrayStore(identifier, move(fieldName), index, parseExpression(tokens));
-            }
-            return new ASTClassFieldArrayAccess(identifier, move(fieldName), index);
         }
         return new ASTClassFieldAccess(identifier, fieldName);
     }
@@ -783,7 +759,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    map<string, string> fields;
+    vector<ClassFieldDefinition> fields;
     map<string, ASTFunctionDefinition*> methods;
     while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "}")) {
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
@@ -803,7 +779,9 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
                 printOutOfTokensError();
             }
             if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
-                printFatalErrorMessage("expected ']' after array opening for class field (note: arrays as fields are not initialized and thus do not have a length)", tokens);
+                printFatalErrorMessage(
+                        "expected ']' after array opening for class field (note: arrays as fields are not initialized and thus do not have a length)",
+                        tokens);
             }
             // Consume ']'
             if (++parsingIndex >= tokens.size()) {
@@ -821,10 +799,11 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         }
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
-            methods.insert({ fieldName, (ASTFunctionDefinition*) parseFunctionDefinition(tokens, fieldType, fieldName) });
+            methods.insert(
+                    {fieldName, (ASTFunctionDefinition *) parseFunctionDefinition(tokens, fieldType, fieldName)});
         } else {
             cout << "field: " << fieldName << endl;
-            fields.insert({ fieldName, fieldType });
+            fields.push_back({fieldName, fieldType});
         }
         if (tokens[parsingIndex].type != TOKEN_NEWLINE) {
             printFatalErrorMessage("expected new line after field or method declaration", tokens);

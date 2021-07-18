@@ -12,10 +12,10 @@ using namespace std;
 
 class ASTClassDefinition : public ASTNode {
     string name;
-    map<string, string> fields;
+    vector<ClassFieldDefinition> fields;
     map<string, ASTFunctionDefinition*> methods;
 public:
-    explicit ASTClassDefinition(string name, map<string, string> fields, map<string, ASTFunctionDefinition*> methods) : name(move(name)), fields(move(fields)), methods(move(methods)) {}
+    explicit ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, map<string, ASTFunctionDefinition*> methods) : name(move(name)), fields(move(fields)), methods(move(methods)) {}
     string toString() override {
         return "[CLASS_DEF: " + name + " num fields: " + to_string(fields.size()) + "]";
     }

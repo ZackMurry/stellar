@@ -27,9 +27,19 @@ enum VariableType {
     VARIABLE_TYPE_S
 };
 
+struct ClassFieldDefinition {
+    string name;
+    string type;
+};
+
+struct ClassFieldType {
+    string name;
+    llvm::Type* type;
+};
+
 struct ClassData {
     llvm::Type* type;
-    map<string, llvm::Type*> fields;
+    vector<ClassFieldType> fields;
     map<string, llvm::Function*> methods;
 };
 
