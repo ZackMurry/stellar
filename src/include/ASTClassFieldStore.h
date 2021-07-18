@@ -10,13 +10,13 @@
 using namespace std;
 
 class ASTClassFieldStore : public ASTNode {
-    string identifier;
+    vector<string> identifiers;
     string fieldName;
     ASTNode* value;
 public:
-    ASTClassFieldStore(string identifier, string fieldName, ASTNode* value) : identifier(move(identifier)), fieldName(move(fieldName)), value(value) {}
+    ASTClassFieldStore(vector<string> identifiers, string fieldName, ASTNode* value) : identifiers(move(identifiers)), fieldName(move(fieldName)), value(value) {}
     string toString() override {
-        return "[CLASS_FIELD_STO: ident: " + identifier + " field: " + fieldName + " value: " + value->toString() + "]";
+        return "[CLASS_FIELD_STO: ident: " + to_string(identifiers.size()) + " field: " + fieldName + " value: " + value->toString() + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

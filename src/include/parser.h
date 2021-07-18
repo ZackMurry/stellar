@@ -34,6 +34,7 @@ struct ClassFieldDefinition {
 
 struct ClassFieldType {
     string name;
+    string classType;
     llvm::Type* type;
 };
 

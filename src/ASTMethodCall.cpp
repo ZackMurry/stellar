@@ -3,6 +3,7 @@
 //
 
 #include "include/ASTMethodCall.h"
+#include "include/ASTClassFieldAccess.h"
 
 llvm::Value * ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
                                      llvm::LLVMContext *context,
@@ -11,20 +12,53 @@ llvm::Value * ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
                                      llvm::Module *module,
                                      map<string, string> *objectTypes,
                                      map<string, ClassData> *classes) {
-    string name = objectTypes->at(identifier) + "__" + methodName;
+    cout << "ASTMethodCall::codegen" << endl;
+    llvm::Value* obj;
+    cout << "Num identifiers: " << identifiers.size() << endl;
+    if (identifiers.size() > 1) {
+        vector<string> allButFirstIdentifier;
+        for (int i = 1; i < identifiers.size(); i++) {
+            allButFirstIdentifier.push_back(identifiers.at(i));
+        }
+        auto cfa = new ASTClassFieldAccess(identifiers.at(0), allButFirstIdentifier);
+        obj = cfa->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+    } else {
+        obj = namedValues->at(identifiers.at(0));
+    }
+    string lastIdentifier = identifiers.at(identifiers.size() - 1);
+    cout << "Getting objType for " << lastIdentifier << endl;
+    ClassData classData = classes->at(objectTypes->at(identifiers.at(0)));
+    string className = objectTypes->at(identifiers.at(0));
+    for (int i = 1; i < identifiers.size(); i++) {
+        ClassFieldType field;
+        for (const auto& f : classData.fields) {
+            if (f.name == identifiers.at(i)) {
+                field = f;
+                break;
+            }
+        }
+        if (field.type == nullptr) {
+            cerr << "Error: unknown field of object: " << identifiers.at(i) << endl;
+        }
+        cout << "Getting class data for " << field.classType << endl;
+        classData = classes->at(field.classType);
+        className = field.classType;
+        cout << "Class name " << className << endl;
+    }
+    string name = className + "__" + methodName;
     llvm::Function* calleeFunc = module->getFunction(name);
     if (!calleeFunc) {
         cerr << "Error: unknown reference to " << name << endl;
         exit(EXIT_FAILURE);
     }
     if (calleeFunc->arg_size() != args.size() + 1) {
-        cerr << "Error: incorrect number of arguments passed to method " << methodName << " of object " << identifier << endl;
+        cerr << "Error: incorrect number of arguments passed to method " << methodName << " of object " << lastIdentifier << endl;
         exit(EXIT_FAILURE);
     }
     vector<llvm::Value*> argsV;
     for (auto & arg : args) {
         argsV.push_back(arg->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes));
     }
-    argsV.push_back(builder->CreateLoad(namedValues->at(identifier)));
+    argsV.push_back(builder->CreateLoad(obj));
     return builder->CreateCall(calleeFunc, argsV, "calltmp");
 }

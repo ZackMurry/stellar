@@ -20,11 +20,15 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
         if (variableType != -1) {
             auto t = getLLVMTypeByVariableType((VariableType) variableType, context);
             fieldLLVMTypes.push_back(t);
-            llvmFields.push_back({field.name, t });
+            llvmFields.push_back({field.name, "", t });
         } else if (classes->count(field.type)) {
             auto t = classes->at(field.type).type;
             fieldLLVMTypes.push_back(t);
-            llvmFields.push_back({field.name, t });
+            llvmFields.push_back({field.name, field.type, t });
+        } else if (field.type == name) {
+            auto t = llvm::PointerType::getUnqual(classType);
+            fieldLLVMTypes.push_back(t);
+            llvmFields.push_back({ field.name, name, t });
         } else {
             cerr << "Error: expected type for field type but instead found " << field.type << endl;
             exit(EXIT_FAILURE);

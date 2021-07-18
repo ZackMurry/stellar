@@ -31,6 +31,7 @@
 #include "include/ASTFunctionInvocation.h"
 #include "include/ASTIfStatement.h"
 #include "include/ASTMethodCall.h"
+#include "include/ASTNewExpression.h"
 #include "include/ASTNumberExpression.h"
 #include "include/ASTReturn.h"
 #include "include/ASTStringExpression.h"
@@ -44,6 +45,7 @@ using namespace std;
 // todo: boolean literals (true, false)
 // todo: constructors
 // todo: MyClass[]
+// todo: ability to test if field/obj is null
 
 unsigned long parsingIndex = 0;
 
@@ -147,6 +149,24 @@ ASTNode* parseParenExpression(vector<Token> tokens) {
     return v;
 }
 
+// Expects parsing index to be at 'n'
+ASTNode* parseNewExpression(vector<Token> tokens) {
+    cout << "New expression" << endl;
+    // Consume 'n'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        printFatalErrorMessage("cannot instantiate unknown class", tokens);
+    }
+    string className = tokens[parsingIndex].value;
+    // Consume class name
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    return new ASTNewExpression(className);
+}
+
 ASTNode* parsePrimary(vector<Token> tokens) {
     switch (tokens[parsingIndex].type) {
         case TOKEN_IDENTIFIER:
@@ -161,6 +181,8 @@ ASTNode* parsePrimary(vector<Token> tokens) {
             }
         case TOKEN_STRING:
             return new ASTStringExpression(tokens[parsingIndex++].value);
+        case TOKEN_NEW:
+            return parseNewExpression(tokens);
         default:
             printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
             return nullptr;
@@ -467,7 +489,7 @@ ASTNode* parseClassInstantiation(vector<Token> tokens) {
 }
 
 // Expects parsing index to be at '('
-ASTNode* parseMethodCall(vector<Token> tokens, const string& identifier, const string& methodName) {
+ASTNode* parseMethodCall(vector<Token> tokens, vector<string> identifiers, const string& methodName) {
     cout << "Method call" << endl;
     // Consume '('
     if (++parsingIndex >= tokens.size()) {
@@ -494,36 +516,59 @@ ASTNode* parseMethodCall(vector<Token> tokens, const string& identifier, const s
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    return new ASTMethodCall(identifier, methodName, args);
+    return new ASTMethodCall(identifiers, methodName, args);
 }
 
 // Expects parsingIndex to be at '.'
 ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
     cout << "Class access: " << identifier << endl;
-    // Consume '.'
-    if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
-    }
-    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-        printFatalErrorMessage("expected field/method name after '.' in object access", tokens);
-    }
     // todo myInst.myField.mySubField
-    string fieldName = tokens[parsingIndex].value;
-    if (++parsingIndex >= tokens.size()) {
-        return new ASTClassFieldAccess(identifier, fieldName);
+    vector<string> fieldNames;
+    while (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {
+        // Consume '.'
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            printFatalErrorMessage("expected field/method name after '.' in object access", tokens);
+        }
+        fieldNames.push_back(tokens[parsingIndex].value);
+        if (++parsingIndex >= tokens.size()) {
+            break;
+        }
+    }
+    if (fieldNames.empty()) {
+        printFatalErrorMessage("no fields to access", tokens);
+    }
+    if (parsingIndex >= tokens.size()) {
+        return new ASTClassFieldAccess(identifier, fieldNames);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
-            return parseMethodCall(tokens, identifier, fieldName);
+            vector<string> fieldNamesWithIdentifier;
+            fieldNamesWithIdentifier.push_back(identifier);
+            for (const auto& fn : fieldNames) {
+                fieldNamesWithIdentifier.push_back(fn);
+            }
+            string methodName = fieldNames.at(fieldNames.size() - 1);
+            fieldNamesWithIdentifier.pop_back();
+            return parseMethodCall(tokens, fieldNamesWithIdentifier, methodName);
         }
-        return new ASTClassFieldAccess(identifier, fieldName);
+        return new ASTClassFieldAccess(identifier, fieldNames);
     }
     cout << "Class field store" << endl;
     // Consume '='
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    return new ASTClassFieldStore(identifier, fieldName, parseExpression(tokens));
+    vector<string> fieldNamesWithIdentifier;
+    fieldNamesWithIdentifier.push_back(identifier);
+    for (const auto& fn : fieldNames) {
+        fieldNamesWithIdentifier.push_back(fn);
+    }
+    string storeName = fieldNames.at(fieldNames.size() - 1);
+    fieldNamesWithIdentifier.pop_back();
+    return new ASTClassFieldStore(fieldNamesWithIdentifier, storeName, parseExpression(tokens));
 }
 
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
