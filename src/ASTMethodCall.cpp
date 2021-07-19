@@ -12,9 +12,7 @@ llvm::Value * ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
                                      llvm::Module *module,
                                      map<string, string> *objectTypes,
                                      map<string, ClassData> *classes) {
-    cout << "ASTMethodCall::codegen" << endl;
     llvm::Value* obj;
-    cout << "Num identifiers: " << identifiers.size() << endl;
     if (identifiers.size() > 1) {
         vector<string> allButFirstIdentifier;
         for (int i = 1; i < identifiers.size(); i++) {
@@ -23,10 +21,9 @@ llvm::Value * ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
         auto cfa = new ASTClassFieldAccess(identifiers.at(0), allButFirstIdentifier);
         obj = cfa->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     } else {
-        obj = namedValues->at(identifiers.at(0));
+        obj = builder->CreateLoad(namedValues->at(identifiers.at(0)));
     }
     string lastIdentifier = identifiers.at(identifiers.size() - 1);
-    cout << "Getting objType for " << lastIdentifier << endl;
     ClassData classData = classes->at(objectTypes->at(identifiers.at(0)));
     string className = objectTypes->at(identifiers.at(0));
     for (int i = 1; i < identifiers.size(); i++) {
@@ -40,10 +37,8 @@ llvm::Value * ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
         if (field.type == nullptr) {
             cerr << "Error: unknown field of object: " << identifiers.at(i) << endl;
         }
-        cout << "Getting class data for " << field.classType << endl;
         classData = classes->at(field.classType);
         className = field.classType;
-        cout << "Class name " << className << endl;
     }
     string name = className + "__" + methodName;
     llvm::Function* calleeFunc = module->getFunction(name);
@@ -59,6 +54,6 @@ llvm::Value * ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
     for (auto & arg : args) {
         argsV.push_back(arg->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes));
     }
-    argsV.push_back(builder->CreateLoad(obj));
+    argsV.push_back(obj);
     return builder->CreateCall(calleeFunc, argsV, "calltmp");
 }

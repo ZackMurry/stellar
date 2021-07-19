@@ -46,6 +46,7 @@ using namespace std;
 // todo: constructors
 // todo: MyClass[]
 // todo: ability to test if field/obj is null
+// todo: chained method calls (obj.get().get().get().get())
 
 unsigned long parsingIndex = 0;
 

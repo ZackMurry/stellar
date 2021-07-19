@@ -13,7 +13,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
                                             llvm::Module* module,
                                             map<string, string>* objectTypes,
                                             map<string, ClassData>* classes) {
-    cout << "FuncDef codegen" << endl;
+    cout << "FuncDef codegen for " << name << endl;
     llvm::Function* func = module->getFunction(name);
     if (func && !func->empty()) {
         cerr << "Error: function " << name << " cannot be redefined" << endl;
@@ -83,6 +83,9 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
         llvm::AllocaInst* alloca = tempBuilder.CreateAlloca(argTypes[index++], nullptr, arg.getName());
         builder->CreateStore(&arg, alloca);
         namedValues->insert({ arg.getName().str(), alloca });
+        if (arg.getType()->isPointerTy() && arg.getType()->getPointerElementType()->isStructTy()) {
+            objectTypes->insert({ arg.getName().str(), args.at(index - 1)->getType() });
+        }
     }
     cout << "Args initialized" << endl;
     for (auto &node : body) {

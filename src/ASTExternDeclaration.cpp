@@ -21,7 +21,7 @@ llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
         if (ivt != -1) {
             llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
         } else if (classes->count(arg->getType())) {
-            llvmType = classes->at(arg->getType()).type;
+            llvmType = llvm::PointerType::getUnqual(classes->at(arg->getType()).type);
         } else {
             cerr << "Error: unknown type " << arg->getType() << endl;
             exit(EXIT_FAILURE);

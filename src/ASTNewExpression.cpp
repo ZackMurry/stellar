@@ -25,5 +25,5 @@ llvm::Value * ASTNewExpression::codegen(llvm::IRBuilder<> *builder,
             nullptr,
             nullptr);
     builder->CreateStore(builder->Insert(inst), alloca);
-    return alloca;
+    return builder->CreateLoad(alloca);
 }

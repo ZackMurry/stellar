@@ -51,6 +51,12 @@ public:
         // todo: it would be nicer to put it at the front
         this->args.push_back(arg);
     }
+    string getReturnType() {
+        return returnType;
+    }
+    string getName() {
+        return name;
+    }
 };
 
 
