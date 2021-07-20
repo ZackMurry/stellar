@@ -659,7 +659,7 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    vector<ASTVariableDefinition*> args;
+    vector<string> argTypes;
     while (++parsingIndex < tokens.size()) {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
             break;
@@ -671,13 +671,13 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
-        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-            printFatalErrorMessage("expected parameter name after type", tokens);
+        // Consume param name if present
+        if (tokens[parsingIndex].type == TOKEN_IDENTIFIER) {
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
         }
-        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, type));
-        if (++parsingIndex >= tokens.size()) {
-            printOutOfTokensError();
-        }
+        argTypes.push_back(type);
         if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
             break;
         }
@@ -687,7 +687,7 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
     }
     // Consume ')'
     parsingIndex++;
-    return new ASTExternDeclaration(name, args, (VariableType) returnType);
+    return new ASTExternDeclaration(name, argTypes, (VariableType) returnType);
 }
 
 // Expects parsing index to be at "if"

@@ -14,30 +14,26 @@ llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
                                            llvm::Module* module,
                                            map<string, string>* objectTypes,
                                            map<string, ClassData>* classes) {
-    vector<llvm::Type*> argTypes;
-    for (const auto& arg : args) {
+    vector<llvm::Type*> llvmArgTypes;
+    for (const auto& at : argTypes) {
         llvm::Type* llvmType;
-        int ivt = getVariableTypeFromString(arg->getType());
+        int ivt = getVariableTypeFromString(at);
         if (ivt != -1) {
             llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
-        } else if (classes->count(arg->getType())) {
-            llvmType = llvm::PointerType::getUnqual(classes->at(arg->getType()).type);
+        } else if (classes->count(at)) {
+            llvmType = llvm::PointerType::getUnqual(classes->at(at).type);
         } else {
-            cerr << "Error: unknown type " << arg->getType() << endl;
+            cerr << "Error: unknown type " << at << endl;
             exit(EXIT_FAILURE);
         }
         if (llvmType == nullptr) {
             cerr << "Error mapping variable type to LLVM type" << endl;
             exit(EXIT_FAILURE);
         }
-        argTypes.push_back(llvmType);
+        llvmArgTypes.push_back(llvmType);
     }
-    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType, context), argTypes, false);
+    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType, context), llvmArgTypes, false);
     llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
-    unsigned index = 0;
-    for (auto &arg : func->args()) {
-        arg.setName(args[index++]->getName());
-    }
     return func;
 }
 

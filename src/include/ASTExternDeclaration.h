@@ -11,14 +11,14 @@ using namespace std;
 
 class ASTExternDeclaration : public ASTNode {
     string name;
-    vector<ASTVariableDefinition*> args;
+    vector<string> argTypes;
     VariableType returnType;
 public:
-    ASTExternDeclaration(string name, vector<ASTVariableDefinition*> args, VariableType returnType) : name(move(name)), args(move(args)), returnType(returnType) {}
+    ASTExternDeclaration(string name, vector<string> argTypes, VariableType returnType) : name(move(name)), argTypes(move(argTypes)), returnType(returnType) {}
     string toString() override {
         string s = "[EXTERN: " + to_string(returnType) + " " + name + " args: [";
-        for (const auto& arg : args) {
-            s += arg->toString();
+        for (const auto& argType : argTypes) {
+            s += argType;
         }
         s += "]]";
         return s;
