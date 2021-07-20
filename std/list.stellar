@@ -1,0 +1,74 @@
+x v printf(s str, i32 val)
+
+// This is an example standard library class
+// Since generics aren't implemented yet, data structures can be a bit sketchy
+
+c ListNode_i32 {
+    ListNode_i32 next
+    i32 len
+    i32 val
+
+    v append(i32 val) {
+        if (t.len == 1) {
+            n ListNode_i32 node
+            node.len = 1
+            node.val = val
+            t.next = node
+        } else {
+            t.next.append(val)
+        }
+        t.len = t.len + 1
+    }
+
+    i32 at(i32 index) {
+        if (index == 0) {
+            r t.val
+        } else {
+            r t.next.at(index - 1)
+        }
+    }
+
+    v print() {
+        if (t.len == 1) {
+            printf("%d\n", t.val)
+        } else {
+            printf("%d->", t.val)
+            t.next.print()
+        }
+    }
+
+}
+
+c List_i32 {
+    ListNode_i32 head
+    i32 len
+
+    v append(i32 val) {
+        if (t.len == 0) {
+            n ListNode_i32 node
+            node.len = 1
+            node.val = val
+            t.head = node
+        } else {
+            t.head.append(val)
+        }
+        t.len = t.len + 1
+    }
+
+    i32 at(i32 index) {
+        if (t.len == 0) {
+            r 0
+        }
+        if (index >= t.len) {
+            r 0
+        }
+        r t.head.at(index)
+    }
+
+    v print() {
+        if (t.len != 0) {
+            t.head.print()
+        }
+    }
+
+}

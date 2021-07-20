@@ -13,12 +13,11 @@ llvm::Value* ASTVariableAssignment::codegen(llvm::IRBuilder<>* builder,
                                             map<string, string>* objectTypes,
                                             map<string, ClassData>* classes) {
     cout << "Getting named val" << endl;
-    cout << "named val: " << namedValues->at(name)->getName().str() << endl;
-    llvm::Value* var = namedValues->at(name);
-    if (!var) {
+    if (!namedValues->count(name)) {
         cerr << "Error: illegal use of undeclared variable '" << name << "'" << endl;
         exit(EXIT_FAILURE);
     }
+    llvm::Value* var = namedValues->at(name);
     builder->CreateStore(value->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), var);
     return var;
 }

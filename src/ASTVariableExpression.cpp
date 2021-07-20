@@ -12,14 +12,10 @@ llvm::Value* ASTVariableExpression::codegen(llvm::IRBuilder<>* builder,
                                             llvm::Module* module,
                                             map<string, string>* objectTypes,
                                             map<string, ClassData>* classes) {
-    llvm::Value* v = namedValues->at(name);
-    if (!v) {
-        cerr << "Parser: undeclared variable " << name << endl;
+    if (!namedValues->count(name)) {
+        cerr << "Error: undeclared variable " << name << endl;
         exit(EXIT_FAILURE);
     }
-//    if (v->getType()->isStructTy()) {
-//        cout << "StructTy" << endl;
-//        return namedValues->at(name);
-//    }
+    llvm::Value* v = namedValues->at(name);
     return builder->CreateLoad(v, name.c_str());
 }

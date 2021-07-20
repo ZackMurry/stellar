@@ -6,6 +6,8 @@
 #ifndef STELLAR_LEXERTOKEN_H
 #define STELLAR_LEXERTOKEN_H
 
+using namespace std;
+
 enum TokenType {
     TOKEN_EOF,
     TOKEN_IDENTIFIER,
@@ -19,14 +21,16 @@ enum TokenType {
     TOKEN_ELSE,
     TOKEN_STRING,
     TOKEN_CLASS,
-    TOKEN_NEW
+    TOKEN_NEW,
+    TOKEN_IMPORT
 };
 
 struct Token {
     TokenType type;
-    std::string value;
+    string value;
     int row;
     int column;
+    string filePath;
 };
 
 #endif //STELLAR_LEXERTOKEN_H

@@ -14,6 +14,7 @@ unsigned long lexingIndex = 0;
 int row = 0;
 int column = 0;
 string content;
+string filePath;
 
 bool isNumeric(const string& s) {
     // todo negative numbers without messing up '-'
@@ -37,6 +38,7 @@ struct Token readToken() {
     struct Token token;
     token.row = row;
     token.column = column;
+    token.filePath = filePath;
     char ch = content.at(lexingIndex);
 
     if (ch == '/') {
@@ -285,6 +287,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "m") {
+        token.type = TOKEN_IMPORT;
+        token.value = "";
+        return token;
+    }
     if (word == "if") {
         token.type = TOKEN_IF;
         token.value = "";
@@ -311,7 +318,7 @@ vector<Token> tokenize(string data) {
         tokens.push_back(t);
         if (lexingIndex < content.size() && content.at(lexingIndex) == '\n') {
             cout << TOKEN_NEWLINE << ":" << "" << " @ [" << row + 1 << ":" << column + 1 << "]" << endl;
-            tokens.push_back({ TOKEN_NEWLINE, "", row, column });
+            tokens.push_back({ TOKEN_NEWLINE, "", row, column, filePath });
             lexingIndex++;
             row++;
             column = 0;
@@ -330,6 +337,9 @@ vector<Token> tokenize(string data) {
 }
 
 vector<Token> tokenizeFile(const string& fileName) {
+    filePath = fileName;
+    row = 0;
+    column = 0;
     ifstream file;
     file.open(fileName);
     if (file.bad()) {

@@ -47,6 +47,11 @@ using namespace std;
 // todo: MyClass[]
 // todo: ability to test if field/obj is null
 // todo: chained method calls (obj.get().get().get().get())
+// todo: string concatenation (probably using sprintf)
+// todo: generics
+// todo: two functions with the same name but different signatures
+// todo: var args for functions
+// todo: loops
 
 unsigned long parsingIndex = 0;
 
@@ -58,7 +63,7 @@ void printOutOfTokensError() {
 }
 
 void printFatalErrorMessage(const string& s, vector<Token> tokens) {
-    cerr << "Error on line " << tokens[parsingIndex].row + 1 << ": " << s << endl;
+    cerr << "Error on line " << tokens[parsingIndex].row + 1 << " of " << tokens[parsingIndex].filePath <<  ": " << s << endl;
     exit(EXIT_FAILURE);
 }
 
