@@ -1,4 +1,4 @@
-x v printf(s, i32)
+x v printf(s, ...)
 
 // This is an example standard library class
 // Since generics aren't implemented yet, data structures can be a bit sketchy

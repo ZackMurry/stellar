@@ -13,12 +13,16 @@ class ASTExternDeclaration : public ASTNode {
     string name;
     vector<string> argTypes;
     VariableType returnType;
+    bool isVarArgs;
 public:
-    ASTExternDeclaration(string name, vector<string> argTypes, VariableType returnType) : name(move(name)), argTypes(move(argTypes)), returnType(returnType) {}
+    ASTExternDeclaration(string name, vector<string> argTypes, VariableType returnType, bool isVarArgs) : name(move(name)), argTypes(move(argTypes)), returnType(returnType), isVarArgs(isVarArgs) {}
     string toString() override {
         string s = "[EXTERN: " + to_string(returnType) + " " + name + " args: [";
         for (const auto& argType : argTypes) {
             s += argType;
+        }
+        if (isVarArgs) {
+            s += "] isVarArgs: [true";
         }
         s += "]]";
         return s;

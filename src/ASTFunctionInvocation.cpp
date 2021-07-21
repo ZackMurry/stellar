@@ -19,7 +19,7 @@ llvm::Value* ASTFunctionInvocation::codegen(llvm::IRBuilder<>* builder,
         cerr << "Error: unknown reference to " << name << endl;
         exit(EXIT_FAILURE);
     }
-    if (calleeFunc->arg_size() != args.size()) {
+    if (calleeFunc->arg_size() != args.size() && !calleeFunc->isVarArg()) {
         cerr << "Error: incorrect number of arguments passed to function " << name << endl;
         exit(EXIT_FAILURE);
     }

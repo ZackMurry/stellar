@@ -49,8 +49,6 @@ using namespace std;
 // todo: chained method calls (obj.get().get().get().get())
 // todo: string concatenation (probably using sprintf)
 // todo: generics
-// todo: two functions with the same name but different signatures
-// todo: var args for functions
 // todo: loops
 
 unsigned long parsingIndex = 0;
@@ -660,8 +658,30 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
         printOutOfTokensError();
     }
     vector<string> argTypes;
+    bool isVarArgs = false;
     while (++parsingIndex < tokens.size()) {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+            break;
+        }
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {
+            // Var args
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ".") {
+                printFatalErrorMessage("unexpected '.' in extern definition. Did you mean '...'?", tokens);
+            }
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ".") {
+                printFatalErrorMessage("unexpected '..' in extern definition. Did you mean '...'?", tokens);
+            }
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            cout << "Var args" << endl;
+            isVarArgs = true;
             break;
         }
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
@@ -687,7 +707,7 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
     }
     // Consume ')'
     parsingIndex++;
-    return new ASTExternDeclaration(name, argTypes, (VariableType) returnType);
+    return new ASTExternDeclaration(name, argTypes, (VariableType) returnType, isVarArgs);
 }
 
 // Expects parsing index to be at "if"
