@@ -19,6 +19,7 @@
 #include "include/ASTClassFieldStore.h"
 #include "include/ASTClassInstantiation.h"
 #include "include/ASTExternDeclaration.h"
+#include "include/ASTForExpression.h"
 #include "include/ASTFunctionDefinition.h"
 #include "include/ASTFunctionInvocation.h"
 #include "include/ASTIfStatement.h"
@@ -41,7 +42,8 @@ using namespace std;
 // todo: chained method calls (obj.get().get().get().get())
 // todo: string concatenation (probably using sprintf)
 // todo: generics
-// todo: loops
+// todo: while loops
+// todo: argv and argc
 
 unsigned long parsingIndex = 0;
 
@@ -886,6 +888,118 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     }
 }
 
+ASTNode* parseForExpression(vector<Token> tokens) {
+    cout << "For expression" << endl;
+    // Consume "for"
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
+        printFatalErrorMessage("expected '(' after \"for\"", tokens);
+    }
+    // Consume '('
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    vector<Token> initTokens; // Tokens associated with the initializer
+    while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ";")) {
+        initTokens.push_back(tokens[parsingIndex]);
+        parsingIndex++;
+    }
+    // Check for overflow and consume ';'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    unsigned long currParsingIndex = parsingIndex;
+    vector<ASTNode*> initNodes = parse(initTokens);
+    parsingIndex = currParsingIndex;
+    if (initNodes.size() > 1) {
+        printFatalErrorMessage("expected one statement in for loop initializer", tokens);
+    }
+    ASTNode* init = nullptr;
+    if (!initNodes.empty()) {
+        init = initNodes.at(0);
+    }
+    // If there is a condition
+    ASTBinaryExpression* condition = nullptr;
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ";") {
+        // todo: a parseCondition function for conditions that can handle &&, ||, etc
+        auto conditionLHS = parseExpression(tokens);
+
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION) {
+            printFatalErrorMessage("expected comparison operator after expression in if condition", tokens);
+        }
+
+        ExpressionOperator op;
+        if (tokens[parsingIndex].value == "<") {
+            op = OPERATOR_LT;
+        } else if (tokens[parsingIndex].value == ">") {
+            op = OPERATOR_GT;
+        } else if (tokens[parsingIndex].value == "==") {
+            op = OPERATOR_EQ;
+        } else if (tokens[parsingIndex].value == "<=") {
+            op = OPERATOR_LE;
+        } else if (tokens[parsingIndex].value == ">=") {
+            op = OPERATOR_GE;
+        } else if (tokens[parsingIndex].value == "!=") {
+            op = OPERATOR_NE;
+        } else {
+            printFatalErrorMessage("expected comparison operator after expression in for loop", tokens);
+            return nullptr;
+        }
+        // Consume comparison
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        auto conditionRHS = parseExpression(tokens);
+
+        condition = new ASTBinaryExpression(op, conditionLHS, conditionRHS);
+        cout << "Condition: " << condition->toString() << endl;
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ";") {
+            printFatalErrorMessage("expected ';' after condition in for loop", tokens);
+        }
+    } else if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    vector<Token> actionTokens; // Tokens associated with the initializer
+    int numParensOnStack = 0;
+    while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")" || numParensOnStack != 0)) {
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
+            cout << "'('" << endl;
+            numParensOnStack++;
+        } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+            cout << "')'" << endl;
+            numParensOnStack--;
+        }
+        actionTokens.push_back(tokens[parsingIndex]);
+        parsingIndex++;
+    }
+    // Check for overflow and consume ')'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    currParsingIndex = parsingIndex;
+    vector<ASTNode*> actionNodes = parse(actionTokens);
+    parsingIndex = currParsingIndex;
+    if (actionNodes.size() > 1) {
+        printFatalErrorMessage("expected one statement in for loop action", tokens);
+    }
+    ASTNode* action = nullptr;
+    if (!actionNodes.empty()) {
+        action = actionNodes.at(0);
+        cout << "Action: " << action->toString() << endl;
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
+        printFatalErrorMessage("expected '{' after for loop start", tokens);
+    }
+    // Consume '{'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    vector<ASTNode*> body = getBodyOfBlock(tokens);
+    return new ASTForExpression(init, condition, action, body);
+}
+
 vector<ASTNode*> parse(vector<Token> tokens) {
     parsingIndex = 0;
     vector<ASTNode*> nodes;
@@ -904,6 +1018,8 @@ vector<ASTNode*> parse(vector<Token> tokens) {
             nodes.push_back(parseClassDefinition(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_NEW) {
             nodes.push_back(parseClassInstantiation(tokens));
+        } else if (tokens[parsingIndex].type == TOKEN_FOR) {
+            nodes.push_back(parseForExpression(tokens));
         } else {
             cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
             parsingIndex++;

@@ -96,7 +96,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     if (builder->GetInsertBlock()->empty() || !builder->GetInsertBlock()->end()->isTerminator()) {
         builder->CreateRetVoid();
     }
-    builder->SetInsertPoint(entryBlock);
+    builder->SetInsertPoint(&entryBlock->getParent()->back());
     cout << "Verifying function " << name << endl;
     llvm::verifyFunction(*func);
     // Restore named values

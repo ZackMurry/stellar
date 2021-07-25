@@ -7,7 +7,6 @@
 #ifndef STELLAR_ASTIFSTATEMENT_H
 #define STELLAR_ASTIFSTATEMENT_H
 
-using namespace std;
 
 // todo: logical and
 class ASTIfStatement : public ASTNode {

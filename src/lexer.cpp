@@ -302,6 +302,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "for") {
+        token.type = TOKEN_FOR;
+        token.value = "";
+        return token;
+    }
     token.type = TOKEN_IDENTIFIER;
     token.value = word;
     return token;

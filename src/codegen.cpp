@@ -13,6 +13,7 @@
 #include "llvm/Support/FileSystem.h"
 
 
+// todo optimization passes
 void generateOutput(const vector<ASTNode*>& nodes) {
     cout << "Initialized module" << endl;
     auto* context = new llvm::LLVMContext();
@@ -31,7 +32,7 @@ void generateOutput(const vector<ASTNode*>& nodes) {
     }
 
     cout << "Adding return to main" << endl;
-    builder->SetInsertPoint(entryBlock);
+    builder->SetInsertPoint(&func->back());
     builder->CreateRetVoid();
     cout << "Writing object file..." << endl;
     auto targetTriple = llvm::sys::getDefaultTargetTriple();
