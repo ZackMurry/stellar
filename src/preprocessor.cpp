@@ -22,7 +22,7 @@ vector<Token> preprocessTokens(const vector<Token>& tokens, const string& filePa
             exit(EXIT_FAILURE);
         }
         if (tokens.at(i).type != TOKEN_STRING) {
-            cerr << "Error: 'm' should be followed by a string, but instead it was followed by token type " << tokens.at(i).type << " at " << to_string(tokens.at(i).row + 1) + ":" + to_string(tokens.at(i).column + 1) << endl;
+            cerr << "Error: 'm' should be followed by a string (indicating the file to import), but instead it was followed by token type " << tokens.at(i).type << " at " << to_string(tokens.at(i).row + 1) + ":" + to_string(tokens.at(i).column + 1) << endl;
             exit(EXIT_FAILURE);
         }
         string importPath = tokens.at(i).value;

@@ -9,14 +9,6 @@
 #include <string>
 #include "include/parser.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/IR/LegacyPassManager.h"
 
 #include "include/ASTArrayAccess.h"
 #include "include/ASTArrayDefinition.h"
@@ -52,8 +44,6 @@ using namespace std;
 // todo: loops
 
 unsigned long parsingIndex = 0;
-
-static auto* context = new llvm::LLVMContext();
 
 void printOutOfTokensError() {
     cerr << "Error: expected token, but nothing found at token " << parsingIndex << endl;
@@ -304,8 +294,6 @@ int getVariableTypeFromToken(const Token& token) {
     }
 }
 
-vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens);
-
 // Expects parsingIndex to be after '{'. Consumes ending brace
 vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
     cout << "Getting body of block" << endl;
@@ -329,7 +317,7 @@ vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
         bodyTokens.push_back(tokens[end]);
     }
     cout << "Body token size: " << bodyTokens.size() << endl;
-    vector<ASTNode*> body = parseWithoutTokenizing(bodyTokens);
+    vector<ASTNode*> body = parse(bodyTokens);
     parsingIndex = end + 1;
     return body;
 }
@@ -520,7 +508,7 @@ ASTNode* parseMethodCall(vector<Token> tokens, vector<string> identifiers, const
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    return new ASTMethodCall(identifiers, methodName, args);
+    return new ASTMethodCall(move(identifiers), methodName, args);
 }
 
 // Expects parsingIndex to be at '.'
@@ -898,7 +886,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     }
 }
 
-vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
+vector<ASTNode*> parse(vector<Token> tokens) {
     parsingIndex = 0;
     vector<ASTNode*> nodes;
     while (parsingIndex < tokens.size()) {
@@ -922,70 +910,5 @@ vector<ASTNode*> parseWithoutTokenizing(vector<Token> tokens) {
         }
     }
     cout << "Parsed " << nodes.size() << " nodes" << endl;
-    return nodes;
-}
-
-vector<ASTNode*> parse(vector<Token> tokens) {
-    vector<ASTNode*> nodes = parseWithoutTokenizing(move(tokens));
-    cout << "Initialized module" << endl;
-    auto* module = new llvm::Module("module", *context);
-    auto* builder = new llvm::IRBuilder<>(*context);
-    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::Type::getVoidTy(*context), false);
-    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "STELLAR_ENTRY", *module);
-    llvm::BasicBlock* entryBlock = llvm::BasicBlock::Create(*context, "entry", func);
-    builder->SetInsertPoint(entryBlock);
-    map<string, llvm::Value*> namedValues;
-    map<string, string> objectsTypes;
-    map<string, ClassData> classes;
-    for (auto const &node : nodes) {
-        cout << node->toString() << endl;
-        node->codegen(builder, context, entryBlock, &namedValues, module, &objectsTypes, &classes);
-    }
-
-    cout << "Adding return to main" << endl;
-    builder->SetInsertPoint(entryBlock);
-    builder->CreateRetVoid();
-    cout << "Writing object file..." << endl;
-    auto targetTriple = llvm::sys::getDefaultTargetTriple();
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-    string error;
-    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-    if (!target) {
-        llvm::errs() << error;
-        exit(EXIT_FAILURE);
-    }
-    cout << "target name: " << target->getName() << endl;
-    auto CPU = "generic";
-    auto features = "";
-    llvm::TargetOptions opt;
-    auto RM = llvm::Optional<llvm::Reloc::Model>();
-    auto targetMachine = target->createTargetMachine(targetTriple, CPU, features, opt, RM);
-    cout << "Setting data layout" << endl;
-    module->setDataLayout(targetMachine->createDataLayout());
-    module->setTargetTriple(targetTriple);
-    module->setPIELevel(llvm::PIELevel::Large);
-    module->setPICLevel(llvm::PICLevel::BigPIC);
-    module->print(llvm::errs(), nullptr);
-    auto filename = "output.o";
-    error_code EC;
-    llvm::raw_fd_ostream dest(filename, EC, llvm::sys::fs::OF_None);
-    if (EC) {
-        llvm::errs() << "Could not open file: " << EC.message();
-        exit(EXIT_FAILURE);
-    }
-    llvm::legacy::PassManager pass;
-    auto fileType = llvm::CGFT_ObjectFile;
-    if (targetMachine->addPassesToEmitFile(pass, dest, nullptr, fileType)) {
-        llvm::errs() << "Target machine cannot emit a file of this type";
-        exit(EXIT_FAILURE);
-    }
-    cout << "Running pass" << endl;
-    pass.run(*module);
-    cout << "Pass complete" << endl;
-    dest.flush();
     return nodes;
 }
