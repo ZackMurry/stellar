@@ -10,11 +10,11 @@
 // todo: logical and
 class ASTForExpression : public ASTNode {
     ASTNode* initializer;
-    ASTBinaryExpression* condition;
+    ASTNode* condition;
     ASTNode* action;
     vector<ASTNode*> body;
 public:
-    ASTForExpression(ASTNode* initializer, ASTBinaryExpression* condition, ASTNode* action, vector<ASTNode*> body) : initializer(initializer), condition(condition), action(action), body(move(body)) {}
+    ASTForExpression(ASTNode* initializer, ASTNode* condition, ASTNode* action, vector<ASTNode*> body) : initializer(initializer), condition(condition), action(action), body(move(body)) {}
     string toString() override {
         string s = "[FOR: init: " + initializer->toString() + " condition: " + condition->toString() + " action: " + action->toString() + " body: [";
         for (const auto& b : body) {

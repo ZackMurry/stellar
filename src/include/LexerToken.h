@@ -23,7 +23,8 @@ enum TokenType {
     TOKEN_CLASS,
     TOKEN_NEW,
     TOKEN_IMPORT,
-    TOKEN_FOR
+    TOKEN_FOR,
+    TOKEN_WHILE
 };
 
 struct Token {

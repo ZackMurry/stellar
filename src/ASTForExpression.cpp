@@ -12,6 +12,7 @@ llvm::Value * ASTForExpression::codegen(llvm::IRBuilder<> *builder,
                                         map<string, string> *objectTypes,
                                         map<string, ClassData> *classes) {
     if (initializer) {
+        // todo: reduce scope of variable declarations to loop body instead of parent
         initializer->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     }
     llvm::Value* initConditionVal = condition->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);

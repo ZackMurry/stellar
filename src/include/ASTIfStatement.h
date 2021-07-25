@@ -10,11 +10,11 @@
 
 // todo: logical and
 class ASTIfStatement : public ASTNode {
-    ASTBinaryExpression* condition;
+    ASTNode* condition;
     vector<ASTNode*> ifBody;
     vector<ASTNode*> elseBody;
 public:
-    ASTIfStatement(ASTBinaryExpression* condition, vector<ASTNode*> ifBody, vector<ASTNode*> elseBody) : condition(condition), ifBody(move(ifBody)), elseBody(move(elseBody)) {}
+    ASTIfStatement(ASTNode* condition, vector<ASTNode*> ifBody, vector<ASTNode*> elseBody) : condition(condition), ifBody(move(ifBody)), elseBody(move(elseBody)) {}
     string toString() override {
         string s = "[IF_STMT: condition: " + condition->toString() + " ifBody: [";
         for (auto const& stmt : ifBody) {

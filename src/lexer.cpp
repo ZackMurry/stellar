@@ -307,6 +307,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "while") {
+        token.type = TOKEN_WHILE;
+        token.value = "";
+        return token;
+    }
     token.type = TOKEN_IDENTIFIER;
     token.value = word;
     return token;
