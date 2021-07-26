@@ -32,6 +32,7 @@
 #include "include/ASTVariableDeclaration.h"
 #include "include/ASTVariableDefinition.h"
 #include "include/ASTVariableExpression.h"
+#include "include/ASTVariableMutation.h"
 #include "include/ASTWhileExpression.h"
 
 using namespace std;
@@ -45,6 +46,8 @@ using namespace std;
 // todo: generics
 // todo: while loops
 // todo: argv and argc
+// todo: exit codes
+// todo: explicit casts
 
 unsigned long parsingIndex = 0;
 
@@ -164,6 +167,31 @@ ASTNode* parseNewExpression(vector<Token> tokens) {
     return new ASTNewExpression(className);
 }
 
+// Parses mutations in the form ++var or --var
+ASTNode* parsePreMutationExpression(vector<Token> tokens) {
+    cout << "PreMutation" << endl;
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION) {
+        printFatalErrorMessage("internal error. Expected pre-mutation to start with a token of type punctuation", tokens);
+    }
+    MutationType mutationType;
+    if (tokens[parsingIndex].value == "++") {
+        mutationType = MUTATION_TYPE_ADD;
+    } else if (tokens[parsingIndex].value == "--") {
+        mutationType = MUTATION_TYPE_SUB;
+    } else {
+        printFatalErrorMessage("internal error. Expected pre-mutation to be '++' or '--', but was '" + tokens[parsingIndex].value + "'", tokens);
+        return nullptr;
+    }
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        printFatalErrorMessage("expected an identifier to follow a pre-mutation", tokens);
+    }
+    string identifier = tokens[parsingIndex++].value;
+    return new ASTVariableMutation(identifier, new ASTNumberExpression("1", VARIABLE_TYPE_I32), mutationType, MUTATE_BEFORE);
+}
+
 ASTNode* parsePrimary(vector<Token> tokens) {
     switch (tokens[parsingIndex].type) {
         case TOKEN_IDENTIFIER:
@@ -173,6 +201,8 @@ ASTNode* parsePrimary(vector<Token> tokens) {
         case TOKEN_PUNCTUATION:
             if (tokens[parsingIndex].value == "(") {
                 return parseParenExpression(tokens);
+            } else if (tokens[parsingIndex].value == "++" || tokens[parsingIndex].value == "--") {
+                return parsePreMutationExpression(tokens);
             } else {
                 printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
             }
@@ -566,6 +596,39 @@ ASTNode* parseClassAccess(vector<Token> tokens, const string& identifier) {
     return new ASTClassFieldStore(fieldNamesWithIdentifier, storeName, parseExpression(tokens));
 }
 
+// Expects parsing index to be after identifier
+ASTNode* parseVariableMutation(vector<Token> tokens, const string& identifier) {
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION) {
+        printFatalErrorMessage("internal error. Expected variable mutation token to be of type punctuation", tokens);
+    }
+    ASTNode* change;
+    MutationType mutationType;
+    if (tokens[parsingIndex].value == "++") {
+        change = new ASTNumberExpression("1", VARIABLE_TYPE_I32);
+        mutationType = MUTATION_TYPE_ADD;
+    } else if (tokens[parsingIndex].value == "--") {
+        change = new ASTNumberExpression("1", VARIABLE_TYPE_I32);
+        mutationType = MUTATION_TYPE_SUB;
+    } else if (tokens[parsingIndex].value == "+=") {
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        change = parseExpression(tokens);
+        mutationType = MUTATION_TYPE_ADD;
+    } else if (tokens[parsingIndex].value == "-=") {
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        change = parseExpression(tokens);
+        mutationType = MUTATION_TYPE_SUB;
+    } else {
+        printFatalErrorMessage("internal error. Expected variable mutation to be valid, but instead found '" + tokens[parsingIndex].value + "'", tokens);
+        return nullptr;
+    }
+    parsingIndex++;
+    return new ASTVariableMutation(identifier, change, mutationType, MUTATE_AFTER);
+}
+
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value; // Get and consume identifier
     if (++parsingIndex >= tokens.size()) {
@@ -578,6 +641,11 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
         return parseVariableAssignment(tokens, identifier);
     } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {
         return parseClassAccess(tokens, identifier);
+    } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION) {
+        if (tokens[parsingIndex].value == "++" || tokens[parsingIndex].value == "--" || tokens[parsingIndex].value == "+=" || tokens[parsingIndex].value == "-=") {
+            cout << "Variable mutation" << endl;
+            return parseVariableMutation(tokens, identifier);
+        }
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "(") {
         cout << "Variable expression" << endl;
@@ -1043,6 +1111,8 @@ vector<ASTNode*> parse(vector<Token> tokens) {
             nodes.push_back(parseForExpression(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_WHILE) {
             nodes.push_back(parseWhileExpression(tokens));
+        } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && (tokens[parsingIndex].value == "++" || tokens[parsingIndex].value == "--")) {
+            nodes.push_back(parsePreMutationExpression(tokens));
         } else {
             cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
             parsingIndex++;
