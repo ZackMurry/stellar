@@ -43,8 +43,14 @@ llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_DIVIDE:
-            cerr << "Error: division is not implemented" << endl;
-            exit(EXIT_FAILURE);
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateSDiv(l, r, "divtmp");
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFDiv(l, r, "divtmp");
+            } else {
+                cerr << "Error: unknown div type" << endl;
+                exit(EXIT_FAILURE);
+            }
         case OPERATOR_LT:
             if (l->getType()->isIntegerTy()) {
                 return builder->CreateICmpSLT(l, r, "cmptmp");
