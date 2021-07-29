@@ -289,27 +289,27 @@ struct Token readToken() {
         token.value = "false";
         return token;
     }
-    if (word == "r") {
+    if (word == "ret") {
         token.type = TOKEN_RETURN;
         token.value = "";
         return token;
     }
-    if (word == "x") {
+    if (word == "extern") {
         token.type = TOKEN_EXTERN;
         token.value = "";
         return token;
     }
-    if (word == "c") {
+    if (word == "class") {
         token.type = TOKEN_CLASS;
         token.value = "";
         return token;
     }
-    if (word == "n") {
+    if (word == "new") {
         token.type = TOKEN_NEW;
         token.value = "";
         return token;
     }
-    if (word == "m") {
+    if (word == "import") {
         token.type = TOKEN_IMPORT;
         token.value = "";
         return token;

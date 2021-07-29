@@ -42,8 +42,8 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
         // Prepend class name to function name
         method.second->setName(name + "__" + method.first);
 
-        // Add "t" arg for reference to the class
-        method.second->addArg(new ASTVariableDefinition("t", name));
+        // Add "this" arg for reference to the class
+        method.second->addArg(new ASTVariableDefinition("this", name));
         vector<llvm::Type*> argTypes;
         for (const auto& arg : method.second->getArgs()) {
             llvm::Type* llvmType;

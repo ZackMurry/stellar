@@ -1,73 +1,73 @@
-x v printf(s, ...)
+extern v printf(s, ...)
 
 // This is an example standard library class
 // Since generics aren't implemented yet, data structures can be a bit sketchy
 
-c ListNode_i32 {
+class ListNode_i32 {
     ListNode_i32 next
     i32 len
     i32 val
 
     v append(i32 val) {
-        if (t.len == 1) {
-            n ListNode_i32 node
+        if (this.len == 1) {
+            new ListNode_i32 node
             node.len = 1
             node.val = val
-            t.next = node
+            this.next = node
         } else {
-            t.next.append(val)
+            this.next.append(val)
         }
-        t.len = t.len + 1
+        this.len = this.len + 1
     }
 
     i32 at(i32 index) {
         if (index == 0) {
-            r t.val
+            ret this.val
         } else {
-            r t.next.at(index - 1)
+            ret this.next.at(index - 1)
         }
     }
 
     v print() {
-        if (t.len == 1) {
-            printf("%d\n", t.val)
+        if (this.len == 1) {
+            printf("%d\n", this.val)
         } else {
-            printf("%d->", t.val)
-            t.next.print()
+            printf("%d->", this.val)
+            this.next.print()
         }
     }
 
 }
 
-c List_i32 {
+class List_i32 {
     ListNode_i32 head
     i32 len
 
     v append(i32 val) {
-        if (t.len == 0) {
-            n ListNode_i32 node
+        if (this.len == 0) {
+            new ListNode_i32 node
             node.len = 1
             node.val = val
-            t.head = node
+            this.head = node
         } else {
-            t.head.append(val)
+            this.head.append(val)
         }
-        t.len = t.len + 1
+        this.len = this.len + 1
     }
 
     i32 at(i32 index) {
-        if (t.len == 0) {
-            r 0
+        if (this.len == 0) {
+            ret 0
         }
-        if (index >= t.len) {
-            r 0
+        if (index >= this.len) {
+            ret 0
         }
-        r t.head.at(index)
+        ret this.head.at(index)
     }
 
     v print() {
-        if (t.len != 0) {
-            t.head.print()
+        if (this.len != 0) {
+            this.head.print()
         }
     }
 
