@@ -18,7 +18,13 @@ llvm::Value* ASTVariableDefinition::codegen(llvm::IRBuilder<>* builder,
     if (ivt != -1) {
         llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
     } else if (classes->count(type)) {
-        llvmType = classes->at(type).type;
+        auto ptrTy = llvm::PointerType::getUnqual(classes->at(type).type);
+        auto val = llvm::ConstantPointerNull::get(ptrTy);
+        auto alloca = builder->CreateAlloca(ptrTy, nullptr, name);
+        builder->CreateStore(val, alloca);
+        namedValues->insert({ name, alloca });
+        objectTypes->insert({ name, type });
+        return alloca;
     } else {
         cerr << "Error: unknown variable type " << type << endl;
         exit(EXIT_FAILURE);

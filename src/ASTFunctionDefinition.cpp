@@ -34,7 +34,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
                 llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
             } else if (classes->count(arg->getType())) {
                 cout << "Arg " << arg->getName() << " is an object" << endl;
-                llvmType = llvm::PointerType::get(classes->at(arg->getType()).type, 0);
+                llvmType = llvm::PointerType::getUnqual(classes->at(arg->getType()).type);
                 objectTypes->insert({ arg->getName(), arg->getType() });
             } else {
                 cerr << "Error: unknown type " << arg->getType() << endl;

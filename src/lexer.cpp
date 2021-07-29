@@ -198,6 +198,12 @@ struct Token readToken() {
         token.value = '.';
         return token;
     }
+    if (ch == '?') {
+        token.type = TOKEN_PUNCTUATION;
+        consumeChar();
+        token.value = '?';
+        return token;
+    }
     if (ch == '"') {
         token.type = TOKEN_STRING;
         consumeChar();

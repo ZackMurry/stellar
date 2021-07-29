@@ -13,6 +13,7 @@ llvm::Value* ASTClassFieldStore::codegen(llvm::IRBuilder<> *builder,
                                          map<string, string>* objectTypes,
                                          map<string, ClassData>* classes) {
     llvm::Value* obj;
+    cout << "ASTClassFieldStore::codegen" << endl;
     if (identifiers.size() > 1) {
         // This is basically ASTClassFieldAccess::codegen but without loading the final value :|
         vector<string> allButFirstIdentifier;

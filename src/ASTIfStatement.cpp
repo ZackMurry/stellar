@@ -11,7 +11,9 @@ llvm::Value* ASTIfStatement::codegen(llvm::IRBuilder<>* builder,
                                      llvm::Module* module,
                                      map<string, string>* objectTypes,
                                      map<string, ClassData>* classes) {
+    cout << "generating conditionValue" << endl;
     llvm::Value* conditionValue = condition->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+    cout << "conditionValue generated" << endl;
     llvm::BasicBlock* ifBB = llvm::BasicBlock::Create(*context, "ifbody");
     llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(*context, "elsebody");
     llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeif");

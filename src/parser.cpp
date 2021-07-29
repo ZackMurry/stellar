@@ -26,6 +26,7 @@
 #include "include/ASTIfStatement.h"
 #include "include/ASTMethodCall.h"
 #include "include/ASTNewExpression.h"
+#include "include/ASTNullCheckExpression.h"
 #include "include/ASTNumberExpression.h"
 #include "include/ASTReturn.h"
 #include "include/ASTStringExpression.h"
@@ -38,7 +39,6 @@
 
 using namespace std;
 
-// todo: boolean literals (true, false)
 // todo: constructors
 // todo: MyClass[]
 // todo: ability to test if field/obj is null using builder->CreateIsNull()
@@ -638,6 +638,10 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "?") {
+        parsingIndex++;
+        return new ASTNullCheckExpression(identifier);
+    }
     if (tokens[parsingIndex].type == TOKEN_IDENTIFIER || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[")) {
         return parseVariableDeclaration(tokens, identifier);
     }
@@ -795,8 +799,6 @@ ASTNode* parseCondition(vector<Token> tokens) {
         op = OPERATOR_NE;
     } else {
         return conditionLHS;
-//        printFatalErrorMessage("expected comparison operator after expression in for loop", tokens);
-//        return nullptr;
     }
     // Consume comparison
     if (++parsingIndex >= tokens.size()) {

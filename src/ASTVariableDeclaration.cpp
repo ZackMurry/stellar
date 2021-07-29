@@ -21,7 +21,7 @@ llvm::Value* ASTVariableDeclaration::codegen(llvm::IRBuilder<>* builder,
         if (ivt != -1) {
             llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
         } else if (classes->count(type)) {
-            llvmType = llvm::PointerType::get(classes->at(type).type, 0);
+            llvmType = llvm::PointerType::getUnqual(classes->at(type).type);
         } else {
             cerr << "Error: unknown variable type " << type << endl;
             exit(EXIT_FAILURE);
