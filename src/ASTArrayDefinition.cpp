@@ -11,7 +11,16 @@ llvm::Value* ASTArrayDefinition::codegen(llvm::IRBuilder<>* builder,
                                          llvm::Module* module,
                                          map<string, string>* objectTypes,
                                          map<string, ClassData>* classes) {
-    llvm::Type* llvmElType = getLLVMTypeByVariableType(elementType, context);
+    llvm::Type* llvmElType;
+    int ivt = getVariableTypeFromString(elementType);
+    if (ivt != -1) {
+        llvmElType = getLLVMTypeByVariableType((VariableType) ivt, context);
+    } else if (classes->count(elementType)) {
+        llvmElType = llvm::PointerType::getUnqual(classes->at(elementType).type);
+    } else {
+        cerr << "Error: unknown array element type " << elementType << endl;
+        exit(EXIT_FAILURE);
+    }
     auto alloca = builder->CreateAlloca(llvmElType, nullptr, "new_arr");
     auto inst = llvm::CallInst::CreateMalloc(
             builder->GetInsertBlock(),

@@ -10,12 +10,12 @@
 using namespace std;
 
 class ASTClassFieldAccess : public ASTNode {
-    string identifier;
-    vector<string> fieldNames;
+    ASTNode* object;
+    string fieldName;
 public:
-    ASTClassFieldAccess(string identifier, vector<string> fieldNames) : identifier(move(identifier)), fieldNames(move(fieldNames)) {}
+    ASTClassFieldAccess(ASTNode* object, string fieldName) : object(object), fieldName(move(fieldName)) {}
     string toString() override {
-        return "[CLASS_FIELD_ACC: num fields: " + to_string(fieldNames.size()) + "]";
+        return "[CLASS_FIELD_ACC: " + object->toString() + " field: " + fieldName + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

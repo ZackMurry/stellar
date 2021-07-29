@@ -11,8 +11,14 @@ llvm::Value* ASTArrayAccess::codegen(llvm::IRBuilder<>* builder,
                                      llvm::Module* module,
                                      map<string, string>* objectTypes,
                                      map<string, ClassData>* classes) {
+    if (!namedValues->count(name)) {
+        cerr << "Error: undeclared variable " << name << endl;
+        exit(EXIT_FAILURE);
+    }
     auto* gep = builder->CreateInBoundsGEP(namedValues->at(name), index->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), "acctmp");
-    gep->mutateType(getLLVMPtrTypeByType(namedValues->at(name)->getType()->getPointerElementType(), context));
+    if (!gep->getType()->isPointerTy()) {
+        gep->mutateType(getLLVMPtrTypeByType(namedValues->at(name)->getType()->getPointerElementType(), context));
+    }
     return builder->CreateLoad(gep, "loadtmp");
 }
 

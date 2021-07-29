@@ -10,12 +10,12 @@ using namespace std;
 
 class ASTArrayDefinition : public ASTNode {
     string name;
-    VariableType elementType;
+    string elementType;
     ASTNode* length;
 public:
-    ASTArrayDefinition(string name, VariableType elementType, ASTNode* length) : name(move(name)), elementType(elementType), length(length) {}
+    ASTArrayDefinition(string name, string elementType, ASTNode* length) : name(move(name)), elementType(move(elementType)), length(length) {}
     string toString() override {
-        return "[ARR_DEF: " + name + " " + to_string(elementType) + " size: " + length->toString() + "]";
+        return "[ARR_DEF: " + name + " " + elementType + " size: " + length->toString() + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

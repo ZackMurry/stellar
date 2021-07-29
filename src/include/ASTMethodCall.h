@@ -9,13 +9,13 @@
 
 
 class ASTMethodCall : public ASTNode {
-    vector<string> identifiers;
+    ASTNode* object;
     string methodName;
     vector<ASTNode*> args;
 public:
-    ASTMethodCall(vector<string> identifiers, string methodName, vector<ASTNode*> args) : identifiers(move(identifiers)), methodName(move(methodName)), args(move(args)) {}
+    ASTMethodCall(ASTNode* object, string methodName, vector<ASTNode*> args) : object(object), methodName(move(methodName)), args(move(args)) {}
     string toString() override {
-        return "[METHOD_CALL: object: " + to_string(identifiers.size()) + " method: " + methodName + "]";
+        return "[METHOD_CALL: object: " + object->toString() + " method: " + methodName + "]";
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
