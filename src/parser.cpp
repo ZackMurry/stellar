@@ -14,6 +14,7 @@
 #include "include/ASTArrayDefinition.h"
 #include "include/ASTArrayIndexAssignment.h"
 #include "include/ASTBinaryExpression.h"
+#include "include/ASTBooleanExpression.h"
 #include "include/ASTClassDefinition.h"
 #include "include/ASTClassFieldAccess.h"
 #include "include/ASTClassFieldStore.h"
@@ -40,11 +41,10 @@ using namespace std;
 // todo: boolean literals (true, false)
 // todo: constructors
 // todo: MyClass[]
-// todo: ability to test if field/obj is null
+// todo: ability to test if field/obj is null using builder->CreateIsNull()
 // todo: chained method calls (obj.get().get().get().get())
 // todo: string concatenation (probably using sprintf)
 // todo: generics
-// todo: while loops
 // todo: argv and argc
 // todo: exit codes
 // todo: explicit casts
@@ -78,6 +78,8 @@ llvm::Type* getLLVMTypeByVariableType(VariableType type, llvm::LLVMContext* ctx)
         return llvm::Type::getInt64Ty(*ctx);
     } else if (type == VARIABLE_TYPE_S) {
         return llvm::Type::getInt8PtrTy(*ctx);
+    } else if (type == VARIABLE_TYPE_B) {
+        return llvm::Type::getInt1Ty(*ctx);
     } else {
         std::cerr << "Parser: unimplemented type " << type << std::endl;
         exit(EXIT_FAILURE);
@@ -210,6 +212,8 @@ ASTNode* parsePrimary(vector<Token> tokens) {
             return new ASTStringExpression(tokens[parsingIndex++].value);
         case TOKEN_NEW:
             return parseNewExpression(tokens);
+        case TOKEN_BOOLEAN:
+            return new ASTBooleanExpression(tokens[parsingIndex++].value == "true");
         default:
             printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
             return nullptr;
@@ -790,8 +794,9 @@ ASTNode* parseCondition(vector<Token> tokens) {
     } else if (tokens[parsingIndex].value == "!=") {
         op = OPERATOR_NE;
     } else {
-        printFatalErrorMessage("expected comparison operator after expression in for loop", tokens);
-        return nullptr;
+        return conditionLHS;
+//        printFatalErrorMessage("expected comparison operator after expression in for loop", tokens);
+//        return nullptr;
     }
     // Consume comparison
     if (++parsingIndex >= tokens.size()) {
