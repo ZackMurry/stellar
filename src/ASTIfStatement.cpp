@@ -20,7 +20,6 @@ llvm::Value* ASTIfStatement::codegen(llvm::IRBuilder<>* builder,
     builder->CreateCondBr(conditionValue, ifBB, elseBB);
     builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(ifBB);
     builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(elseBB);
-    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
     builder->SetInsertPoint(ifBB);
     for (auto const& line : ifBody) {
         line->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
@@ -31,6 +30,8 @@ llvm::Value* ASTIfStatement::codegen(llvm::IRBuilder<>* builder,
         line->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     }
     builder->CreateBr(mergeBB);
+    // Add merge block last so that the outer-most merge block in nested if statements occurs last
+    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
     builder->SetInsertPoint(mergeBB);
     return mergeBB;
 }
