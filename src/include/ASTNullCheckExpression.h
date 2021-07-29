@@ -9,11 +9,11 @@
 #define STELLAR_ASTNULLCHECKEXPRESSION_H
 
 class ASTNullCheckExpression : public ASTNode {
-    string identifier;
+    ASTNode* value;
 public:
-    explicit ASTNullCheckExpression(string identifier) : identifier(move(identifier)) {}
+    explicit ASTNullCheckExpression(ASTNode* value) : value(value) {}
     string toString() override {
-        return "[IS_NULL: " + identifier + "]";
+        return "[IS_NULL: " + value->toString() + "]";
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

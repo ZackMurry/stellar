@@ -277,6 +277,10 @@ ASTNode* parseExpression(const vector<Token>& tokens) {
     if (tokens[parsingIndex].type == TOKEN_NEWLINE || tokens[parsingIndex].type == TOKEN_EOF) {
         return lhs;
     }
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "?") {
+        parsingIndex++;
+        return new ASTNullCheckExpression(lhs);
+    }
     return parseBinOpRHS(tokens, 0, lhs);
 }
 
@@ -637,10 +641,6 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value; // Get and consume identifier
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
-    }
-    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "?") {
-        parsingIndex++;
-        return new ASTNullCheckExpression(identifier);
     }
     if (tokens[parsingIndex].type == TOKEN_IDENTIFIER || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[")) {
         return parseVariableDeclaration(tokens, identifier);

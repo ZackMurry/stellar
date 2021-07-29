@@ -11,14 +11,5 @@ llvm::Value * ASTNullCheckExpression::codegen(llvm::IRBuilder<> *builder,
                                               llvm::Module *module,
                                               map<string, string> *objectTypes,
                                               map<string, ClassData> *classes) {
-    if (!namedValues->count(identifier)) {
-        cerr << "Error: unknown identifier " << identifier << endl;
-        exit(EXIT_FAILURE);
-    }
-    if (!objectTypes->count(identifier)) {
-        cerr << "Error: invalid attempt to perform null check on non-object. Null checks are only available for objects" << endl;
-        exit(EXIT_FAILURE);
-    }
-    cout << "Parent: " << builder->GetInsertBlock()->getParent()->getName().str() << endl;
-    return builder->CreateIsNull(builder->CreateLoad(namedValues->at(identifier)), "nullchktmp");
+    return builder->CreateIsNull(value->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), "nullchktmp");
 }
