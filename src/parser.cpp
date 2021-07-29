@@ -45,6 +45,7 @@ using namespace std;
 // todo: argv and argc
 // todo: exit codes
 // todo: explicit casts
+// todo: functions with the same name but different signatures
 
 unsigned long parsingIndex = 0;
 
@@ -161,9 +162,33 @@ ASTNode* parseNewExpression(vector<Token> tokens) {
     string className = tokens[parsingIndex].value;
     // Consume class name
     if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
+        return new ASTNewExpression(className, vector<ASTNode*>());
     }
-    return new ASTNewExpression(className);
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
+        // Consume '('
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        vector<ASTNode*> args;
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+            while (true) {
+                args.push_back(parseExpression(tokens));
+                if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+                    break;
+                }
+                if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+                    cout << "i: " << parsingIndex << endl;
+                    printFatalErrorMessage("expected ',' or ')' in constructor list", tokens);
+                }
+                // Consume ','
+                if (++parsingIndex >= tokens.size()) {
+                    printOutOfTokensError();
+                }
+            }
+        }
+        return new ASTNewExpression(className, args);
+    }
+    return new ASTNewExpression(className, vector<ASTNode*>());
 }
 
 // Parses mutations in the form ++var or --var
@@ -484,10 +509,10 @@ ASTNode* parseVariableAssignment(vector<Token> tokens, string name) {
     return new ASTVariableAssignment(move(name), parseExpression(tokens));
 }
 
-// Expects parsingIndex to be at 'n'
+// Expects parsingIndex to be at "new"
 ASTNode* parseClassInstantiation(vector<Token> tokens) {
     cout << "Class instantiation" << endl;
-    // Consume 'n'
+    // Consume "new"
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
@@ -502,9 +527,36 @@ ASTNode* parseClassInstantiation(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value;
     // Consume identifier
     if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
+        return new ASTClassInstantiation(className, identifier, vector<ASTNode*>());
     }
-    return new ASTClassInstantiation(className, identifier);
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
+        // Constructor invocation
+
+        // Consume '('
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        vector<ASTNode*> args;
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+            while (true) {
+                args.push_back(parseExpression(tokens));
+                if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+                    break;
+                }
+                if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+                    cout << "i: " << parsingIndex << endl;
+                    printFatalErrorMessage("expected ',' or ')' in constructor list", tokens);
+                }
+                // Consume ','
+                if (++parsingIndex >= tokens.size()) {
+                    printOutOfTokensError();
+                }
+            }
+        }
+        parsingIndex++; // Consume ')'
+        return new ASTClassInstantiation(className, identifier, args);
+    }
+    return new ASTClassInstantiation(className, identifier, vector<ASTNode*>());
 }
 
 // Expects parsing index to be at '('
@@ -876,45 +928,44 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     vector<ClassFieldDefinition> fields;
     map<string, ASTFunctionDefinition*> methods;
     while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "}")) {
-        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_NEW) {
             printFatalErrorMessage("expected identifier in class body", tokens);
         }
         string fieldType = tokens[parsingIndex].value;
-        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-            printFatalErrorMessage("expected field name after type", tokens);
+        bool isConstructor = false;
+        if (tokens[parsingIndex].type == TOKEN_NEW) {
+            fieldType = "v";
+            isConstructor = true;
         }
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
-        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") {
-            cout << "Array field" << endl;
-            // Consume '['
+        string fieldName;
+        if (isConstructor) {
+            fieldName = "new";
+        } else {
+            if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+                if (fieldType == "v" && tokens[parsingIndex].type == TOKEN_NEW) {
+                    // Allow "v new(...) {...}"
+                    isConstructor = true;
+                    fieldName = "new";
+                } else {
+                    printFatalErrorMessage("expected identifier for field name", tokens);
+                }
+            } else {
+                fieldName = tokens[parsingIndex].value;
+            }
+            // Consume field name
             if (++parsingIndex >= tokens.size()) {
                 printOutOfTokensError();
             }
-            if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "]") {
-                printFatalErrorMessage(
-                        "expected ']' after array opening for class field (note: arrays as fields are not initialized and thus do not have a length)",
-                        tokens);
-            }
-            // Consume ']'
-            if (++parsingIndex >= tokens.size()) {
-                printOutOfTokensError();
-            }
-            fieldType += "[]";
-        }
-        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-            printFatalErrorMessage("expected identifier for field name", tokens);
-        }
-        string fieldName = tokens[parsingIndex].value;
-        // Consume field name
-        if (++parsingIndex >= tokens.size()) {
-            printOutOfTokensError();
         }
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
             methods.insert(
                     {fieldName, (ASTFunctionDefinition *) parseFunctionDefinition(tokens, fieldType, fieldName)});
+        } else if (isConstructor) {
+            printFatalErrorMessage("A field cannot have the type 'new'", tokens);
         } else {
             cout << "field: " << fieldName << endl;
             fields.push_back({fieldName, fieldType});

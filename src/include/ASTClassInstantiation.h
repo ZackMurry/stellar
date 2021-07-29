@@ -12,10 +12,11 @@ using namespace std;
 class ASTClassInstantiation : public ASTNode {
     string className;
     string identifier;
+    vector<ASTNode*> args;
 public:
-    ASTClassInstantiation(string className, string identifier) : className(move(className)), identifier(move(identifier)) {}
+    ASTClassInstantiation(string className, string identifier, vector<ASTNode*> args) : className(move(className)), identifier(move(identifier)), args(move(args)) {}
     string toString() override {
-        return "[CLASS_INST: type: " + className + " name: " + identifier + "]";
+        return "[CLASS_INST: type: " + className + " name: " + identifier + " num args: " + to_string(args.size()) + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

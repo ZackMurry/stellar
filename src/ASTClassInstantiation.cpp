@@ -28,5 +28,23 @@ llvm::Value* ASTClassInstantiation::codegen(llvm::IRBuilder<> *builder,
     builder->CreateStore(builder->Insert(inst), alloca);
     namedValues->insert({ identifier, alloca });
     objectTypes->insert({ identifier, className });
+    // todo: constructors that have no parameters but still have effects
+    if (!args.empty()) {
+        llvm::Function* constructor = module->getFunction(className + "__new");
+        if (!constructor) {
+            cerr << "Error: no constructor found for class " << className << endl;
+            exit(EXIT_FAILURE);
+        }
+        if (constructor->arg_size() != args.size() + 1) {
+            cerr << "Error: incorrect number of arguments passed to constructor of " << className << endl;
+            exit(EXIT_FAILURE);
+        }
+        vector<llvm::Value*> argsV;
+        for (auto & arg : args) {
+            argsV.push_back(arg->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes));
+        }
+        argsV.push_back(builder->CreateLoad(alloca)); // Add object instance parameter
+        builder->CreateCall(constructor, argsV, "newtmp");
+    }
     return alloca;
 }
