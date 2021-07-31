@@ -13,7 +13,7 @@ class ASTVariableExpression : public ASTNode {
 public:
     explicit ASTVariableExpression(string name) : name(move(name)) {}
     string toString() override {
-        return "[VAR_EXP: " + name + "]";
+        return "[VARIABLE: " + name + "]";
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

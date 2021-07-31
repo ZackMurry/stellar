@@ -27,7 +27,7 @@ class ASTBinaryExpression : public ASTNode {
 public:
     ASTBinaryExpression(ExpressionOperator op, ASTNode* lhs, ASTNode* rhs) : op(op), lhs(lhs), rhs(rhs) {}
     string toString() override {
-        return "[BIN_EXPRESSION: " + to_string(op) + " " + lhs->toString() + " " + rhs->toString() + "]";
+        return "[BIN_EXP: " + to_string(op) + " " + lhs->toString() + " " + rhs->toString() + "]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

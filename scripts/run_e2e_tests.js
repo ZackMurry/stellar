@@ -27,23 +27,29 @@ const runTests = async () => {
     for (const file of files) {
         const fileBaseName = path.basename(file, path.extname(file))
         if (path.extname(file) === '.stellar') {
-            const stdout = (await execSync(`${executablePath} ${path.join(e2ePath, file)} ${stdFolder} >> ${logPath} && clang++ ${runnerPath} ${outputPath} -o ${mainPath} -static && ${mainPath}`)).toString()
-            const content = await fs.readFileSync(path.join(e2eOutputPath, fileBaseName + '.output')).toString()
-            if (stdout !== content) {
-                console.error(`Test failed: ${fileBaseName}`)
-                console.log('Output:')
-                console.log(stdout)
-                console.log('Expected:')
-                console.log(content)
-                console.log('-----------------------------------------------')
-            } else {
-                numTestsPassed++
-                console.log(`Test passed: ${fileBaseName}`)
+            try {
+                const stdout = (await execSync(`${executablePath} ${path.join(e2ePath, file)} ${stdFolder} >> ${logPath} && clang++ ${runnerPath} ${outputPath} -o ${mainPath} -static && ${mainPath}`)).toString()
+                const content = await fs.readFileSync(path.join(e2eOutputPath, fileBaseName + '.output')).toString()
+                if (stdout !== content) {
+                    console.error(`Test failed: ${fileBaseName}`)
+                    console.log('Output:')
+                    console.log(stdout)
+                    console.log('Expected:')
+                    console.log(content)
+                    console.log('-----------------------------------------------')
+                } else {
+                    numTestsPassed++
+                    console.log(`Test passed: ${fileBaseName}`)
+                }
+            } catch (e) {
+                console.error(`Test failed: ${fileBaseName} (compilation error)`)
             }
         }
     }
     console.log(`Passed ${numTestsPassed}/${files.length - 1} tests`)
-    process.exit(1)
+    if (numTestsPassed !== files.length - 1) {
+            process.exit(1)
+    }
 }
 
 runTests()

@@ -46,6 +46,8 @@ using namespace std;
 // todo: exit codes
 // todo: explicit casts
 // todo: functions with the same name but different signatures
+// todo: *= and /=
+// todo: %
 
 unsigned long parsingIndex = 0;
 
@@ -298,7 +300,8 @@ ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
 
 ASTNode* parseExpression(const vector<Token>& tokens) {
     auto lhs = parsePrimary(tokens);
-    if (tokens[parsingIndex].type == TOKEN_NEWLINE || tokens[parsingIndex].type == TOKEN_EOF || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")")) {
+    cout << "lhs parsed" << endl;
+    if (parsingIndex >= tokens.size() || tokens[parsingIndex].type == TOKEN_NEWLINE || tokens[parsingIndex].type == TOKEN_EOF || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")")) {
         return lhs;
     }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "?") {
@@ -443,9 +446,10 @@ ASTNode* parseArrayAccess(vector<Token> tokens, string name, ASTNode* index) {
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
+        cout << "Parsing arr acc exp" << endl;
         return new ASTArrayIndexAssignment(move(name), index, parseExpression(tokens));
     }
-    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {
+    if (parsingIndex < tokens.size() && tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {
         return parseClassAccess(tokens, new ASTArrayAccess(move(name), index));
     }
     return new ASTArrayAccess(move(name), index);
@@ -464,10 +468,7 @@ ASTNode* parseArrayDefinition(vector<Token> tokens, const string& type) {
         printFatalErrorMessage("expected ']' after array length", tokens);
     }
     // Consume ']'
-    if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
-    }
-    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+    if (++parsingIndex >= tokens.size() || tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
         return parseArrayAccess(tokens, type, length);
     }
     string name = tokens[parsingIndex++].value; // Consume name
@@ -660,7 +661,7 @@ ASTNode* parseVariableMutation(vector<Token> tokens, const string& identifier) {
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value; // Get and consume identifier
     if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
+        return new ASTVariableExpression(identifier);
     }
     if (tokens[parsingIndex].type == TOKEN_IDENTIFIER || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[")) {
         return parseVariableDeclaration(tokens, identifier);

@@ -1,0 +1,15 @@
+extern v printf(s fmt, ...)
+
+class Box {
+    i32 width
+    i32 height
+
+    v printArea() {
+        printf("%d\n", this.width * this.height)
+    }
+}
+
+new Box box
+box.width = 10
+box.height = 15
+box.printArea()

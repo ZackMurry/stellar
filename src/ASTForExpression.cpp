@@ -19,7 +19,6 @@ llvm::Value * ASTForExpression::codegen(llvm::IRBuilder<> *builder,
     auto* loopBB = llvm::BasicBlock::Create(*context, "forbody");
     auto* mergeBB = llvm::BasicBlock::Create(*context, "mergefor");
     builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(loopBB);
-    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
     builder->CreateCondBr(initConditionVal, loopBB, mergeBB);
     builder->SetInsertPoint(loopBB);
     for (auto const& line : body) {
@@ -29,6 +28,7 @@ llvm::Value * ASTForExpression::codegen(llvm::IRBuilder<> *builder,
     // Termination test
     auto* terminationVal = condition->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     builder->CreateCondBr(terminationVal, loopBB, mergeBB);
+    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
     builder->SetInsertPoint(mergeBB);
     return mergeBB;
 }

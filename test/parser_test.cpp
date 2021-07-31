@@ -74,3 +74,44 @@ TEST(ParserTest, FunctionInvocationTest) {
     ASSERT_EQ(nodes[0]->toString(), "[FUN_INV: printf args: [[STRING: Here is a number: %d\n][NUMBER: 2 type: 2]]]");
 }
 
+TEST(ParserTest, ArrayDefinitionTest) {
+    auto nodes = parse(tokenize("i32[5] nums"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[ARR_DEF: nums i32 size: [NUMBER: 5 type: 2]]");
+
+    nodes = parse(tokenize("i32[length] myArr"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[ARR_DEF: myArr i32 size: [VARIABLE: length]]");
+
+    nodes = parse(tokenize("i32[1 + 2] myArr"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[ARR_DEF: myArr i32 size: [BIN_EXP: 0 [NUMBER: 1 type: 2] [NUMBER: 2 type: 2]]]");
+}
+
+TEST(ParserTest, ArrayAccessTest) {
+    auto nodes = parse(tokenize("i32 val = myArr[4]"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[VAR_DECL: val i32 [ARR_ACCESS: myArr at [NUMBER: 4 type: 2]]]");
+
+    nodes = parse(tokenize("i32 val = myArr[1+2]"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[VAR_DECL: val i32 [ARR_ACCESS: myArr at [BIN_EXP: 0 [NUMBER: 1 type: 2] [NUMBER: 2 type: 2]]]]");
+
+    nodes = parse(tokenize("i32 val = myArr[index]"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[VAR_DECL: val i32 [ARR_ACCESS: myArr at [VARIABLE: index]]]");
+}
+
+TEST(ParserTest, ArrayIndexAssignmentTest) {
+    auto nodes = parse(tokenize("myArr[0] = 2"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[ARR_ASSIGN: myArr at [NUMBER: 0 type: 2] to [NUMBER: 2 type: 2]]");
+
+    nodes = parse(tokenize("myArr[1+2] = 2"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[ARR_ASSIGN: myArr at [BIN_EXP: 0 [NUMBER: 1 type: 2] [NUMBER: 2 type: 2]] to [NUMBER: 2 type: 2]]");
+
+    nodes = parse(tokenize("myArr[index] = val"));
+    ASSERT_EQ(nodes.size(), 1);
+    ASSERT_EQ(nodes[0]->toString(), "[ARR_ASSIGN: myArr at [VARIABLE: index] to [VARIABLE: val]]");
+}

@@ -1,0 +1,19 @@
+extern v printf(s fmt, ...)
+
+class Box {
+    i32 width
+    i32 height
+
+    new(i32 width, i32 height) {
+        this.width = width
+        this.height = height
+    }
+}
+
+new Box box(13, 37)
+printf("%d\n", box.width)
+printf("%d\n", box.height)
+
+Box box2 = new Box(12, 34)
+printf("%d\n", box2.width)
+printf("%d\n", box2.height)
