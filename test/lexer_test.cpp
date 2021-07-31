@@ -258,6 +258,11 @@ TEST(LexerTest, PunctuationTest) {
     ASSERT_EQ(tokens.size(), 1);
     ASSERT_EQ(tokens[0].type, TOKEN_PUNCTUATION);
     ASSERT_EQ(tokens[0].value, ".");
+
+    tokens = tokenize("%");
+    ASSERT_EQ(tokens.size(), 1);
+    ASSERT_EQ(tokens[0].type, TOKEN_PUNCTUATION);
+    ASSERT_EQ(tokens[0].value, "%");
 }
 
 TEST(LexerTest, ExternTest) {

@@ -75,7 +75,7 @@ llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
             } else if (l->getType()->isFloatingPointTy()) {
                 return builder->CreateFCmpOEQ(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator" << endl;
+                cerr << "Error: unimplemented == operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_LE:
@@ -84,7 +84,7 @@ llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
             } else if (l->getType()->isFloatingPointTy()) {
                 return builder->CreateFCmpOLE(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator" << endl;
+                cerr << "Error: unimplemented <= operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_GE:
@@ -93,7 +93,7 @@ llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
             } else if (l->getType()->isFloatingPointTy()) {
                 return builder->CreateFCmpOGE(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator" << endl;
+                cerr << "Error: unimplemented >= operator" << endl;
                 exit(EXIT_FAILURE);
             }
         case OPERATOR_NE:
@@ -102,7 +102,16 @@ llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
             } else if (l->getType()->isFloatingPointTy()) {
                 return builder->CreateFCmpONE(l, r, "cmptmp");
             } else {
-                cerr << "Error: unimplemented > operator" << endl;
+                cerr << "Error: unimplemented != operator" << endl;
+                exit(EXIT_FAILURE);
+            }
+        case OPERATOR_MODULO:
+            if (l->getType()->isIntegerTy()) {
+                return builder->CreateSRem(l, r, "modtmp");
+            } else if (l->getType()->isFloatingPointTy()) {
+                return builder->CreateFRem(l, r, "modtmp");
+            } else {
+                cerr << "Error: unimplemented % operator" << endl;
                 exit(EXIT_FAILURE);
             }
         default:

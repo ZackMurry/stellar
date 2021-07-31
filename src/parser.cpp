@@ -47,7 +47,7 @@ using namespace std;
 // todo: explicit casts
 // todo: functions with the same name but different signatures
 // todo: *= and /=
-// todo: %
+// todo: &&, ||
 
 unsigned long parsingIndex = 0;
 
@@ -250,6 +250,9 @@ int getTokenPrecedence(const Token& token) {
     if (token.type != TOKEN_PUNCTUATION) {
         return -1;
     }
+    if (token.value == "%") {
+        return 10;
+    }
     if (token.value == "+") {
         return 20;
     }
@@ -284,6 +287,8 @@ ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
             binOp = OPERATOR_TIMES;
         } else if (tokens[parsingIndex].value == "/") {
             binOp = OPERATOR_DIVIDE;
+        } else if (tokens[parsingIndex].value == "%") {
+            binOp = OPERATOR_MODULO;
         } else {
             printFatalErrorMessage("unknown binary operator '" + tokens[parsingIndex].value + "'", tokens);
             return nullptr;
@@ -300,7 +305,6 @@ ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
 
 ASTNode* parseExpression(const vector<Token>& tokens) {
     auto lhs = parsePrimary(tokens);
-    cout << "lhs parsed" << endl;
     if (parsingIndex >= tokens.size() || tokens[parsingIndex].type == TOKEN_NEWLINE || tokens[parsingIndex].type == TOKEN_EOF || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")")) {
         return lhs;
     }

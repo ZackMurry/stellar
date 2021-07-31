@@ -1,0 +1,4 @@
+extern v printf(s fmt, ...)
+
+printf("%d\n", 5 % 3)
+printf("%.1f\n", 2.1d % 2.0d)

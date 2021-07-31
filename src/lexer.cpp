@@ -151,6 +151,12 @@ struct Token readToken() {
         consumeChar();
         return token;
     }
+    if (ch == '%') {
+        token.type = TOKEN_PUNCTUATION;
+        token.value = "%";
+        consumeChar();
+        return token;
+    }
     if (ch == ',') {
         token.type = TOKEN_PUNCTUATION;
         token.value = ",";
