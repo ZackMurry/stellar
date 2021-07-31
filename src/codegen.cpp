@@ -58,7 +58,7 @@ void generateOutput(const vector<ASTNode*>& nodes) {
     module->setTargetTriple(targetTriple);
     module->setPIELevel(llvm::PIELevel::Large);
     module->setPICLevel(llvm::PICLevel::BigPIC);
-    module->print(llvm::errs(), nullptr);
+    module->print(llvm::outs(), nullptr);
     auto filename = "output.o";
     error_code EC;
     llvm::raw_fd_ostream dest(filename, EC, llvm::sys::fs::OF_None);

@@ -1,0 +1,6 @@
+extern v printf(s fmt, ...)
+
+v printTheOutput() {
+    printf("This is the output: %d\n", 10)
+}
+printTheOutput()

@@ -186,6 +186,8 @@ ASTNode* parseNewExpression(vector<Token> tokens) {
                 }
             }
         }
+        // Consume ')'
+        parsingIndex++;
         return new ASTNewExpression(className, args);
     }
     return new ASTNewExpression(className, vector<ASTNode*>());
@@ -1141,8 +1143,7 @@ vector<ASTNode*> parse(vector<Token> tokens) {
         } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && (tokens[parsingIndex].value == "++" || tokens[parsingIndex].value == "--")) {
             nodes.push_back(parsePreMutationExpression(tokens));
         } else {
-            cerr << "Parser: unimplemented token type " << tokens[parsingIndex].type << ":" << tokens[parsingIndex].value << endl;
-            parsingIndex++;
+            printFatalErrorMessage("unknown token type " + to_string(tokens[parsingIndex].type) + ":" + tokens[parsingIndex].value, tokens);
         }
     }
     cout << "Parsed " << nodes.size() << " nodes" << endl;

@@ -1,0 +1,5 @@
+extern v printf(s fmt, ...)
+
+for (i32 i = 0; i < 10; i++) {
+    printf("i: %d\n", i)
+}

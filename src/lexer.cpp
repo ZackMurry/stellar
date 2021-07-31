@@ -357,7 +357,6 @@ vector<Token> tokenize(string data) {
     content = move(data);
     vector<Token> tokens;
     while (lexingIndex < content.size()) {
-        cout << "Reading token..." << endl;
         struct Token t = readToken();
         cout << t.type << ":" << t.value << " @ [" << t.row + 1 << ":" << t.column + 1 << "]" << endl;
         tokens.push_back(t);
