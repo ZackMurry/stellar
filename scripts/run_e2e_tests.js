@@ -5,7 +5,7 @@ const { execSync } = require('child_process')
 const runTests = async () => {
     const logPath = path.join(__dirname, 'e2e.log')
     const rootPath = path.join(__dirname, '..')
-    if (path.basename(rootPath) !== 'stellar') {
+    if (path.basename(process.cwd()) !== 'stellar') {
         console.error('Error: wrong working directory. Your working directory should be the root directory of the project (the stellar folder)')
         return
     }
@@ -19,7 +19,7 @@ const runTests = async () => {
     const e2ePath = path.join(rootPath, 'test', 'e2e')
     const e2eOutputPath = path.join(e2ePath, 'output')
     const stdFolder = path.join(rootPath, 'std')
-    const outputPath = path.join(__dirname, 'output.o')
+    const outputPath = path.join(rootPath, 'output.o')
     const runnerPath = path.join(rootPath, 'runner.cpp')
     const mainPath = path.join(__dirname, 'main')
     const files = await fs.readdirSync(e2ePath)
@@ -27,7 +27,7 @@ const runTests = async () => {
     for (const file of files) {
         const fileBaseName = path.basename(file, path.extname(file))
         if (path.extname(file) === '.stellar') {
-            const stdout = await execSync(`${executablePath} ${path.join(e2ePath, file)} ${stdFolder} >> ${logPath} && clang++ ${runnerPath} ${outputPath} -o main -static && ${mainPath}`).toString()
+            const stdout = (await execSync(`${executablePath} ${path.join(e2ePath, file)} ${stdFolder} >> ${logPath} && clang++ ${runnerPath} ${outputPath} -o ${mainPath} -static && ${mainPath}`)).toString()
             const content = await fs.readFileSync(path.join(e2eOutputPath, fileBaseName + '.output')).toString()
             if (stdout !== content) {
                 console.error(`Test failed: ${fileBaseName}`)
@@ -43,6 +43,7 @@ const runTests = async () => {
         }
     }
     console.log(`Passed ${numTestsPassed}/${files.length - 1} tests`)
+    process.exit(1)
 }
 
 runTests()
