@@ -28,7 +28,7 @@ public:
         for (const auto& line : body) {
             s += line->toString();
         }
-        s += "] ]";
+        s += "] returnType: " + returnType + "]";
         return s;
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,

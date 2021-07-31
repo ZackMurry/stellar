@@ -296,7 +296,7 @@ ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
 
 ASTNode* parseExpression(const vector<Token>& tokens) {
     auto lhs = parsePrimary(tokens);
-    if (tokens[parsingIndex].type == TOKEN_NEWLINE || tokens[parsingIndex].type == TOKEN_EOF) {
+    if (tokens[parsingIndex].type == TOKEN_NEWLINE || tokens[parsingIndex].type == TOKEN_EOF || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")")) {
         return lhs;
     }
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "?") {
@@ -373,11 +373,10 @@ vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
         } else if (tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
             stackSize--;
         }
-        end++;
+        bodyTokens.push_back(tokens[end++]);
         if (stackSize == 0 && tokens[end].type == TOKEN_PUNCTUATION && tokens[end].value == "}") {
             break;
         }
-        bodyTokens.push_back(tokens[end]);
     }
     cout << "Body token size: " << bodyTokens.size() << endl;
     vector<ASTNode*> body = parse(bodyTokens);

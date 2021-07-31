@@ -14,7 +14,7 @@ class ASTNumberExpression : public ASTNode {
 public:
     ASTNumberExpression(string val, VariableType type) : val(move(val)), type(type) {}
     string toString() override {
-        return "[NUM_EXP: " + val + " type: " + to_string(type) + "]";
+        return "[NUMBER: " + val + " type: " + to_string(type) + "]";
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,

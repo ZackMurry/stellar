@@ -43,8 +43,10 @@ struct Token readToken() {
 
     if (ch == '/') {
         if (lexingIndex + 1 >= content.size()) {
-            cerr << "Error: unexpected end of file" << endl;
-            exit(EXIT_FAILURE);
+            consumeChar();
+            token.type = TOKEN_PUNCTUATION;
+            token.value = "/";
+            return token;
         }
         if (content.at(lexingIndex + 1) == '/') {
             consumeChar(); // Consume first '/'
@@ -52,7 +54,9 @@ struct Token readToken() {
             while (lexingIndex < content.size() && content.at(lexingIndex) != '\n' && content.at(lexingIndex) != EOF) {
                 consumeChar();
             }
-            consumeChar(); // Consume newline
+            if (lexingIndex < content.size()) {
+                consumeChar(); // Consume newline
+            }
             token.type = TOKEN_NEWLINE;
             row++;
             column = 0;
@@ -63,7 +67,7 @@ struct Token readToken() {
     if (ch == '=') {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
-        if (content.at(lexingIndex) == '=') {
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
             consumeChar();
             token.value = "==";
         } else {
@@ -110,10 +114,10 @@ struct Token readToken() {
     if (ch == '+') {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
-        if (content.at(lexingIndex) == '=') {
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
             token.value = "+=";
             consumeChar();
-        } else if (content.at(lexingIndex) == '+') {
+        } else if (lexingIndex < content.size() && content.at(lexingIndex) == '+') {
             token.value = "++";
             consumeChar();
         } else {
@@ -124,10 +128,10 @@ struct Token readToken() {
     if (ch == '-') {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
-        if (content.at(lexingIndex) == '=') {
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
             token.value = "-=";
             consumeChar();
-        } else if (content.at(lexingIndex) == '-') {
+        } else if (lexingIndex < content.size() && content.at(lexingIndex) == '-') {
             token.value = "--";
             consumeChar();
         } else {
@@ -162,7 +166,7 @@ struct Token readToken() {
     if (ch == '<') {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
-        if (content.at(lexingIndex) == '=') {
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
             lexingIndex++;
             token.value = "<=";
         } else {
@@ -173,7 +177,7 @@ struct Token readToken() {
     if (ch == '>') {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
-        if (content.at(lexingIndex) == '=') {
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
             lexingIndex++;
             token.value = ">=";
         } else {
@@ -184,7 +188,7 @@ struct Token readToken() {
     if (ch == '!') {
         token.type = TOKEN_PUNCTUATION;
         consumeChar();
-        if (content.at(lexingIndex) == '=') {
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
             consumeChar();
             token.value = "!=";
         } else {
@@ -210,7 +214,7 @@ struct Token readToken() {
         string val;
         while (lexingIndex < content.size() && content.at(lexingIndex) != '"') {
             // If char is an escape char
-            if (content.at(lexingIndex) == '\\' && content.at(lexingIndex + 1) != '\\') {
+            if (content.at(lexingIndex) == '\\') {
                 consumeChar(); // Consume '\'
                 if (content.at(lexingIndex) == 'n') {
                     val += '\n';
@@ -220,6 +224,9 @@ struct Token readToken() {
                     consumeChar();
                 } else if (content.at(lexingIndex) == '"') {
                     val += '"';
+                    consumeChar();
+                } else if (content.at(lexingIndex) == '\\') {
+                    val += '\\';
                     consumeChar();
                 } else {
                     cerr << "Error on line " << column << ": unknown escape character " << '\\' << content.at(lexingIndex) << ". Treating character as unescaped" << endl;
@@ -249,13 +256,19 @@ struct Token readToken() {
             ch = content.at(lexingIndex);
         }
         token.value = word;
+        if (lexingIndex == content.size()) {
+            return token;
+        }
         if (content.at(lexingIndex) == '.') {
             token.value += '.';
             consumeChar();
-            while (isdigit(content.at(lexingIndex))) {
+            while (lexingIndex < content.size() && isdigit(content.at(lexingIndex))) {
                 token.value += content.at(lexingIndex);
                 consumeChar();
             }
+        }
+        if (lexingIndex >= content.size()) {
+            return token;
         }
         if (content.at(lexingIndex) == 'f' || content.at(lexingIndex) == 'd') {
             token.value += content.at(lexingIndex);
@@ -263,7 +276,7 @@ struct Token readToken() {
         } else if (content.at(lexingIndex) == 'i') {
             token.value += content.at(lexingIndex);
             consumeChar();
-            while (isdigit(content.at(lexingIndex))) {
+            while (lexingIndex < content.size() && isdigit(content.at(lexingIndex))) {
                 token.value += content.at(lexingIndex);
                 consumeChar();
             }
@@ -339,12 +352,12 @@ struct Token readToken() {
     return token;
 }
 
-// todo: for preprocessor: run lexer first, then find imports, then call tokenize with the data of the file and the name of the file (to include file names in error msgs), import files, repeat
 vector<Token> tokenize(string data) {
     lexingIndex = 0;
     content = move(data);
     vector<Token> tokens;
     while (lexingIndex < content.size()) {
+        cout << "Reading token..." << endl;
         struct Token t = readToken();
         cout << t.type << ":" << t.value << " @ [" << t.row + 1 << ":" << t.column + 1 << "]" << endl;
         tokens.push_back(t);
