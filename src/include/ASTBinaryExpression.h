@@ -19,7 +19,9 @@ enum ExpressionOperator {
     OPERATOR_GE,
     OPERATOR_EQ,
     OPERATOR_NE,
-    OPERATOR_MODULO
+    OPERATOR_MODULO,
+    OPERATOR_AND,
+    OPERATOR_OR
 };
 
 class ASTBinaryExpression : public ASTNode {

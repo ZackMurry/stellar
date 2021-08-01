@@ -1,0 +1,29 @@
+extern v printf(s fmt, ...)
+
+b myBool = false
+if (myBool) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}
+
+myBool = 1 > 0
+if (myBool) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}
+
+myBool = 1 > 0 && 2 > 3
+if (myBool) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}
+
+myBool = 1 > 0 || 2 > 3
+if (myBool) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}

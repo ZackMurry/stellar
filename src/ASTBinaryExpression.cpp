@@ -12,6 +12,26 @@ llvm::Value* ASTBinaryExpression::codegen(llvm::IRBuilder<>* builder,
                                           llvm::Module* module,
                                           map<string, string>* objectTypes,
                                           map<string, ClassData>* classes) {
+    if (op == OPERATOR_AND || op == OPERATOR_OR) {
+        auto lhsValue = lhs->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        auto ifBB = llvm::BasicBlock::Create(*context, "condif");
+        auto mergeBB = llvm::BasicBlock::Create(*context, "mergecond");
+        auto result = builder->CreateAlloca(llvm::Type::getInt1Ty(*context), nullptr, "condtmp");
+        builder->CreateStore(lhsValue, result);
+        if (op == OPERATOR_AND) {
+            builder->CreateCondBr(lhsValue, ifBB, mergeBB);
+        } else {
+            builder->CreateCondBr(lhsValue, mergeBB, ifBB);
+        }
+        builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(ifBB);
+        builder->SetInsertPoint(ifBB);
+        auto rhsValue = rhs->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        builder->CreateStore(rhsValue, result);
+        builder->CreateBr(mergeBB);
+        builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
+        builder->SetInsertPoint(mergeBB);
+        return builder->CreateLoad(result);
+    }
     llvm::Value* l = lhs->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     llvm::Value* r = rhs->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
     switch (op) {

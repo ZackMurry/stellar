@@ -24,7 +24,6 @@
 #include "include/ASTFunctionDefinition.h"
 #include "include/ASTFunctionInvocation.h"
 #include "include/ASTIfStatement.h"
-#include "include/ASTLogicalExpression.h"
 #include "include/ASTMethodCall.h"
 #include "include/ASTNewExpression.h"
 #include "include/ASTNullCheckExpression.h"
@@ -48,6 +47,8 @@ using namespace std;
 // todo: explicit casts
 // todo: functions with the same name but different signatures
 // todo: parentheses for grouping logical conjunctions
+// todo: !
+// todo: ternary expressions
 
 unsigned long parsingIndex = 0;
 
@@ -250,6 +251,30 @@ int getTokenPrecedence(const Token& token) {
     if (token.type != TOKEN_PUNCTUATION) {
         return -1;
     }
+    if (token.value == "||") {
+        return 3;
+    }
+    if (token.value == "&&") {
+        return 5;
+    }
+    if (token.value == "<") {
+        return 6;
+    }
+    if (token.value == ">") {
+        return 6;
+    }
+    if (token.value == "<=") {
+        return 6;
+    }
+    if (token.value == ">=") {
+        return 6;
+    }
+    if (token.value == "==") {
+        return 6;
+    }
+    if (token.value == "!=") {
+        return 6;
+    }
     if (token.value == "%") {
         return 10;
     }
@@ -289,6 +314,22 @@ ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs) {
             binOp = OPERATOR_DIVIDE;
         } else if (tokens[parsingIndex].value == "%") {
             binOp = OPERATOR_MODULO;
+        } else if (tokens[parsingIndex].value == "&&") {
+            binOp = OPERATOR_AND;
+        } else if (tokens[parsingIndex].value == "||") {
+            binOp = OPERATOR_OR;
+        } else if (tokens[parsingIndex].value == "<") {
+            binOp = OPERATOR_LT;
+        } else if (tokens[parsingIndex].value == ">") {
+            binOp = OPERATOR_GT;
+        } else if (tokens[parsingIndex].value == "==") {
+            binOp = OPERATOR_EQ;
+        } else if (tokens[parsingIndex].value == "<=") {
+            binOp = OPERATOR_LE;
+        } else if (tokens[parsingIndex].value == ">=") {
+            binOp = OPERATOR_GE;
+        } else if (tokens[parsingIndex].value == "!=") {
+            binOp = OPERATOR_NE;
         } else {
             printFatalErrorMessage("unknown binary operator '" + tokens[parsingIndex].value + "'", tokens);
             return nullptr;
@@ -822,57 +863,6 @@ ASTNode* parseExternExpression(vector<Token> tokens) {
     return new ASTExternDeclaration(name, argTypes, (VariableType) returnType, isVarArgs);
 }
 
-ASTNode* parseCondition(vector<Token> tokens) {
-    auto conditionLHS = parseExpression(tokens);
-
-    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION) {
-        printFatalErrorMessage("expected comparison operator after expression in if condition", tokens);
-    }
-
-    ExpressionOperator op;
-    if (tokens[parsingIndex].value == "<") {
-        op = OPERATOR_LT;
-    } else if (tokens[parsingIndex].value == ">") {
-        op = OPERATOR_GT;
-    } else if (tokens[parsingIndex].value == "==") {
-        op = OPERATOR_EQ;
-    } else if (tokens[parsingIndex].value == "<=") {
-        op = OPERATOR_LE;
-    } else if (tokens[parsingIndex].value == ">=") {
-        op = OPERATOR_GE;
-    } else if (tokens[parsingIndex].value == "!=") {
-        op = OPERATOR_NE;
-    } else {
-        return conditionLHS;
-    }
-    // Consume comparison
-    if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
-    }
-    auto conditionRHS = parseExpression(tokens);
-    auto bin = new ASTBinaryExpression(op, conditionLHS, conditionRHS);
-    if (parsingIndex >= tokens.size()) {
-        return bin;
-    }
-
-    // todo: logical operator precedence (can be implemented like in parseExpression)
-    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION) {
-        if (tokens[parsingIndex].value == "&&") {
-            if (++parsingIndex >= tokens.size()) {
-                printOutOfTokensError();
-            }
-            return new ASTLogicalExpression(CONJUNCTION_AND, bin, parseCondition(tokens));
-        } else if (tokens[parsingIndex].value == "||") {
-            if (++parsingIndex >= tokens.size()) {
-                printOutOfTokensError();
-            }
-            return new ASTLogicalExpression(CONJUNCTION_OR, bin, parseCondition(tokens));
-        }
-    }
-
-    return bin;
-}
-
 // Expects parsing index to be at "if"
 ASTNode* parseIfExpression(vector<Token> tokens) {
     cout << "If expression" << endl;
@@ -887,7 +877,7 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    auto* condition = parseCondition(tokens);
+    auto* condition = parseExpression(tokens);
     if (condition == nullptr) {
         exit(EXIT_FAILURE);
     }
@@ -1070,7 +1060,7 @@ ASTNode* parseForExpression(vector<Token> tokens) {
     // If there is a condition
     ASTNode* condition = nullptr;
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ";") {
-        condition = parseCondition(tokens);
+        condition = parseExpression(tokens);
         if (condition == nullptr) {
             exit(EXIT_FAILURE);
         }
@@ -1134,7 +1124,7 @@ ASTNode* parseWhileExpression(vector<Token> tokens) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    auto* condition = parseCondition(tokens);
+    auto* condition = parseExpression(tokens);
     if (condition == nullptr) {
         exit(EXIT_FAILURE);
     }
