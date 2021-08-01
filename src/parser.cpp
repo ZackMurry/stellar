@@ -46,7 +46,6 @@ using namespace std;
 // todo: exit codes
 // todo: explicit casts
 // todo: functions with the same name but different signatures
-// todo: *= and /=
 // todo: &&, ||
 
 unsigned long parsingIndex = 0;
@@ -654,6 +653,18 @@ ASTNode* parseVariableMutation(vector<Token> tokens, const string& identifier) {
         }
         change = parseExpression(tokens);
         mutationType = MUTATION_TYPE_SUB;
+    } else if (tokens[parsingIndex].value == "*=") {
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        change = parseExpression(tokens);
+        mutationType = MUTATION_TYPE_MUL;
+    } else if (tokens[parsingIndex].value == "/=") {
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        change = parseExpression(tokens);
+        mutationType = MUTATION_TYPE_DIV;
     } else {
         printFatalErrorMessage("internal error. Expected variable mutation to be valid, but instead found '" + tokens[parsingIndex].value + "'", tokens);
         return nullptr;
@@ -675,7 +686,12 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {
         return parseClassAccess(tokens, new ASTVariableExpression(identifier));
     } else if (tokens[parsingIndex].type == TOKEN_PUNCTUATION) {
-        if (tokens[parsingIndex].value == "++" || tokens[parsingIndex].value == "--" || tokens[parsingIndex].value == "+=" || tokens[parsingIndex].value == "-=") {
+        if (tokens[parsingIndex].value == "++" ||
+            tokens[parsingIndex].value == "--" ||
+            tokens[parsingIndex].value == "+=" ||
+            tokens[parsingIndex].value == "-=" ||
+            tokens[parsingIndex].value == "*=" ||
+            tokens[parsingIndex].value == "/=") {
             cout << "Variable mutation" << endl;
             return parseVariableMutation(tokens, identifier);
         }

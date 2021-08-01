@@ -141,14 +141,24 @@ struct Token readToken() {
     }
     if (ch == '*') {
         token.type = TOKEN_PUNCTUATION;
-        token.value = "*";
         consumeChar();
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
+            token.value = "*=";
+            consumeChar();
+        } else {
+            token.value = "*";
+        }
         return token;
     }
     if (ch == '/') {
         token.type = TOKEN_PUNCTUATION;
-        token.value = "/";
         consumeChar();
+        if (lexingIndex < content.size() && content.at(lexingIndex) == '=') {
+            token.value = "/=";
+            consumeChar();
+        } else {
+            token.value = "/";
+        }
         return token;
     }
     if (ch == '%') {

@@ -8,7 +8,9 @@
 
 enum MutationType {
     MUTATION_TYPE_ADD,
-    MUTATION_TYPE_SUB
+    MUTATION_TYPE_SUB,
+    MUTATION_TYPE_MUL,
+    MUTATION_TYPE_DIV
 };
 
 enum MutationPosition {

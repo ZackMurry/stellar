@@ -28,14 +28,22 @@ llvm::Value * ASTVariableMutation::codegen(llvm::IRBuilder<> *builder,
     if (load->getType()->isFloatingPointTy()) {
         if (mutationType == MUTATION_TYPE_ADD) {
             modified = builder->CreateFAdd(load, rhs);
-        } else {
+        } else if (mutationType == MUTATION_TYPE_SUB){
             modified = builder->CreateFSub(load, rhs);
+        } else if (mutationType == MUTATION_TYPE_MUL) {
+            modified = builder->CreateFMul(load, rhs);
+        } else {
+            modified = builder->CreateFDiv(load, rhs);
         }
     } else {
         if (mutationType == MUTATION_TYPE_ADD) {
             modified = builder->CreateAdd(load, rhs);
-        } else {
+        } else if (mutationType == MUTATION_TYPE_SUB){
             modified = builder->CreateSub(load, rhs);
+        } else if (mutationType == MUTATION_TYPE_MUL) {
+            modified = builder->CreateMul(load, rhs);
+        } else {
+            modified = builder->CreateSDiv(load, rhs);
         }
     }
     builder->CreateStore(modified, var);
