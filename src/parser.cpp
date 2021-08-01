@@ -24,6 +24,7 @@
 #include "include/ASTFunctionDefinition.h"
 #include "include/ASTFunctionInvocation.h"
 #include "include/ASTIfStatement.h"
+#include "include/ASTLogicalExpression.h"
 #include "include/ASTMethodCall.h"
 #include "include/ASTNewExpression.h"
 #include "include/ASTNullCheckExpression.h"
@@ -46,7 +47,7 @@ using namespace std;
 // todo: exit codes
 // todo: explicit casts
 // todo: functions with the same name but different signatures
-// todo: &&, ||
+// todo: parentheses for grouping logical conjunctions
 
 unsigned long parsingIndex = 0;
 
@@ -849,8 +850,27 @@ ASTNode* parseCondition(vector<Token> tokens) {
         printOutOfTokensError();
     }
     auto conditionRHS = parseExpression(tokens);
+    auto bin = new ASTBinaryExpression(op, conditionLHS, conditionRHS);
+    if (parsingIndex >= tokens.size()) {
+        return bin;
+    }
 
-    return new ASTBinaryExpression(op, conditionLHS, conditionRHS);
+    // todo: logical operator precedence (can be implemented like in parseExpression)
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION) {
+        if (tokens[parsingIndex].value == "&&") {
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            return new ASTLogicalExpression(CONJUNCTION_AND, bin, parseCondition(tokens));
+        } else if (tokens[parsingIndex].value == "||") {
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            return new ASTLogicalExpression(CONJUNCTION_OR, bin, parseCondition(tokens));
+        }
+    }
+
+    return bin;
 }
 
 // Expects parsing index to be at "if"

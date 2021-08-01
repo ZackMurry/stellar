@@ -16,7 +16,7 @@ class ASTForExpression : public ASTNode {
 public:
     ASTForExpression(ASTNode* initializer, ASTNode* condition, ASTNode* action, vector<ASTNode*> body) : initializer(initializer), condition(condition), action(action), body(move(body)) {}
     string toString() override {
-        string s = "[FOR: init: " + initializer->toString() + " condition: " + condition->toString() + " action: " + action->toString() + " body: [";
+        string s = "[FOR: init: " + (initializer ? initializer->toString() : "none") + " condition: " + (condition ? condition->toString() : "none") + " action: " + (action ? action->toString() : "none") + " body: [";
         for (const auto& b : body) {
             s += b->toString();
         }

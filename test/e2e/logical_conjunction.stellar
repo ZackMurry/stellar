@@ -1,0 +1,38 @@
+extern v printf(s fmt, ...)
+
+i32 i = 3
+
+if (i < 5 && i > 0) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}
+
+if (i < 5 && i != 3) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}
+
+if (i > 10 || i < 5) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}
+
+if (i > 10 || i < 3) {
+    printf("1\n")
+} else {
+    printf("0\n")
+}
+
+// Lazy evaluation
+if (i > 10 && i++ < 10) {
+    printf("1\n")
+} else {
+    printf("%d\n", i)
+}
+
+if (i == 3 || --i == 3) {
+    printf("%d\n", i)
+}

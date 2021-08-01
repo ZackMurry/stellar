@@ -260,6 +260,40 @@ struct Token readToken() {
         token.value = val;
         return token;
     }
+
+    if (ch == '|') {
+        if (++lexingIndex >= content.size()) {
+            cerr << "Error on line " << column << ": expected '|' after '|' to make \"||\" but instead found no more tokens" << endl;
+            exit(EXIT_FAILURE);
+        }
+        if (content.at(lexingIndex) == '|') {
+            consumeChar();
+            token.type = TOKEN_PUNCTUATION;
+            token.value = "||";
+            return token;
+        } else {
+            // todo: bitwise and, or, not
+            cerr << "Error on line " << column << ": expected '|' after '|' to make \"||\" but instead found " << content.at(lexingIndex) << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (ch == '&') {
+        if (++lexingIndex >= content.size()) {
+            cerr << "Error on line " << column << ": expected '&' after '&' to make \"&&\" but instead found no more tokens" << endl;
+            exit(EXIT_FAILURE);
+        }
+        if (content.at(lexingIndex) == '&') {
+            consumeChar();
+            token.type = TOKEN_PUNCTUATION;
+            token.value = "&&";
+            return token;
+        } else {
+            cerr << "Error on line " << column << ": expected '&' after '&' to make \"&&\" but instead found " << content.at(lexingIndex) << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
     string word;
     if (isdigit(content.at(lexingIndex))) {
         token.type = TOKEN_NUMBER;
