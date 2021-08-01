@@ -154,7 +154,9 @@ set(STELLAR_SRCS
         src/ASTBooleanExpression.cpp
         src/include/ASTBooleanExpression.h
         src/ASTNullCheckExpression.cpp
-        src/include/ASTNullCheckExpression.h)
+        src/include/ASTNullCheckExpression.h
+        src/ASTNotExpression.cpp
+        src/include/ASTNotExpression.h)
 
 add_definitions(-D_STELLAR_DEBUG_LVL_2)
 

@@ -26,6 +26,7 @@
 #include "include/ASTIfStatement.h"
 #include "include/ASTMethodCall.h"
 #include "include/ASTNewExpression.h"
+#include "include/ASTNotExpression.h"
 #include "include/ASTNullCheckExpression.h"
 #include "include/ASTNumberExpression.h"
 #include "include/ASTReturn.h"
@@ -46,8 +47,6 @@ using namespace std;
 // todo: exit codes
 // todo: explicit casts
 // todo: functions with the same name but different signatures
-// todo: parentheses for grouping logical conjunctions
-// todo: !
 // todo: ternary expressions
 
 unsigned long parsingIndex = 0;
@@ -221,6 +220,8 @@ ASTNode* parsePreMutationExpression(vector<Token> tokens) {
     return new ASTVariableMutation(identifier, new ASTNumberExpression("1", VARIABLE_TYPE_I32), mutationType, MUTATE_BEFORE);
 }
 
+ASTNode* parseBinOpRHS(vector<Token> tokens, int exprPrec, ASTNode* lhs);
+
 ASTNode* parsePrimary(vector<Token> tokens) {
     switch (tokens[parsingIndex].type) {
         case TOKEN_IDENTIFIER:
@@ -232,6 +233,12 @@ ASTNode* parsePrimary(vector<Token> tokens) {
                 return parseParenExpression(tokens);
             } else if (tokens[parsingIndex].value == "++" || tokens[parsingIndex].value == "--") {
                 return parsePreMutationExpression(tokens);
+            } else if (tokens[parsingIndex].value == "!") {
+                // Consume '!'
+                if (++parsingIndex >= tokens.size()) {
+                    printOutOfTokensError();
+                }
+                return new ASTNotExpression(parsePrimary(tokens));
             } else {
                 printFatalErrorMessage("unknown token '" + tokens[parsingIndex].value + "' found when parsing expression", tokens);
             }

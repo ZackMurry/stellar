@@ -1,0 +1,24 @@
+extern v printf(s fmt, ...)
+
+v evaluate(b val) {
+    if (val) {
+        printf("1\n")
+    } else {
+        printf("0\n")
+    }
+}
+
+evaluate(true)
+evaluate(false)
+evaluate(!true)
+evaluate(!false)
+evaluate(!true && !false)
+evaluate(!false && !false)
+evaluate(!false || !false)
+evaluate(!true || !false)
+evaluate(!true || !true)
+evaluate(!(true && false))
+evaluate(!(1 > 0 && 2 < 3))
+evaluate(!!true)
+evaluate(!!false)
+evaluate(!!(1 > 0 && 2 < 3))
