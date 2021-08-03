@@ -9,10 +9,10 @@
 
 
 class ASTMethodCall : public ASTNode {
+public:
     ASTNode* object;
     string methodName;
     vector<ASTNode*> args;
-public:
     ASTMethodCall(ASTNode* object, string methodName, vector<ASTNode*> args) : object(object), methodName(move(methodName)), args(move(args)) {}
     string toString() override {
         return "[METHOD_CALL: object: " + object->toString() + " method: " + methodName + "]";
@@ -24,6 +24,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_METHOD_CALL;
+    }
 };
 
 

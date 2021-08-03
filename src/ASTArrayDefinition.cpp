@@ -12,9 +12,9 @@ llvm::Value* ASTArrayDefinition::codegen(llvm::IRBuilder<>* builder,
                                          map<string, string>* objectTypes,
                                          map<string, ClassData>* classes) {
     llvm::Type* llvmElType;
-    int ivt = getVariableTypeFromString(elementType);
+    int ivt = getPrimitiveVariableTypeFromString(elementType);
     if (ivt != -1) {
-        llvmElType = getLLVMTypeByVariableType((VariableType) ivt, context);
+        llvmElType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, context);
     } else if (classes->count(elementType)) {
         llvmElType = llvm::PointerType::getUnqual(classes->at(elementType).type);
     } else {

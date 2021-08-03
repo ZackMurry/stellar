@@ -13,12 +13,12 @@
 using namespace std;
 
 class ASTFunctionDefinition : public ASTNode {
+public:
     string name;
     vector<ASTVariableDefinition*> args;
     vector<ASTNode*> body;
-    string returnType;
-public:
-    ASTFunctionDefinition(string name, vector<ASTVariableDefinition*> args, vector<ASTNode*> body, string returnType) : name(move(name)), args(move(args)), body(move(body)), returnType(move(returnType)) {}
+    VariableType returnType;
+    ASTFunctionDefinition(string name, vector<ASTVariableDefinition*> args, vector<ASTNode*> body, VariableType returnType) : name(move(name)), args(move(args)), body(move(body)), returnType(move(returnType)) {}
     string toString() override {
         string s = "[FUN_DEF: " + name + " args: [";
         for (const auto& arg : args) {
@@ -28,7 +28,7 @@ public:
         for (const auto& line : body) {
             s += line->toString();
         }
-        s += "] returnType: " + returnType + "]";
+        s += "] returnType: " + convertVariableTypeToString(returnType) + "]";
         return s;
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
@@ -38,24 +38,8 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
-    void setName(const string& n) {
-        this->name = n;
-    }
-    vector<ASTVariableDefinition*> getArgs() {
-        return args;
-    }
-    void setArgs(vector<ASTVariableDefinition*> a) {
-        this->args = move(a);
-    }
-    void addArg(ASTVariableDefinition* arg) {
-        // todo: it would be nicer to put it at the front
-        this->args.push_back(arg);
-    }
-    string getReturnType() {
-        return returnType;
-    }
-    string getName() {
-        return name;
+    ASTNodeType getType() override {
+        return AST_FUNCTION_DEFINITION;
     }
 };
 

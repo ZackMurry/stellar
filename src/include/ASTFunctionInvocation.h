@@ -9,9 +9,9 @@
 using namespace std;
 
 class ASTFunctionInvocation : public ASTNode {
+public:
     string name;
     vector<ASTNode*> args;
-public:
     ASTFunctionInvocation(string name, vector<ASTNode*> args) : name(move(name)), args(move(args)) {}
     string toString() override {
         string s = "[FUN_INV: " + name + " args: [";
@@ -28,6 +28,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_FUNCTION_INVOCATION;
+    }
 };
 
 

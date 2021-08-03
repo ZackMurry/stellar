@@ -3,14 +3,14 @@ extern v printf(s, ...)
 // This is an example standard library class
 // Since generics aren't implemented yet, data structures can be a bit sketchy
 
-class ListNode_i32 {
-    ListNode_i32 next
+class ListNode<T> {
+    ListNode<T> next
     i32 len
-    i32 val
+    T val
 
-    v append(i32 val) {
+    v append(T val) {
         if (this.len == 1) {
-            new ListNode_i32 node
+            new ListNode<T> node
             node.len = 1
             node.val = val
             this.next = node
@@ -20,7 +20,7 @@ class ListNode_i32 {
         this.len = this.len + 1
     }
 
-    i32 at(i32 index) {
+    T at(i32 index) {
         if (index == 0) {
             ret this.val
         } else {
@@ -39,13 +39,13 @@ class ListNode_i32 {
 
 }
 
-class List_i32 {
-    ListNode_i32 head
+class List<T> {
+    ListNode<T> head
     i32 len
 
-    v append(i32 val) {
+    v append(T val) {
         if (this.len == 0) {
-            new ListNode_i32 node
+            new ListNode<T> node
             node.len = 1
             node.val = val
             this.head = node
@@ -55,7 +55,7 @@ class List_i32 {
         this.len = this.len + 1
     }
 
-    i32 at(i32 index) {
+    T at(i32 index) {
         if (this.len == 0) {
             ret 0
         }

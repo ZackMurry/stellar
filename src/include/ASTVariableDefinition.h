@@ -9,12 +9,12 @@
 
 
 class ASTVariableDefinition : public ASTNode {
-    std::string name;
-    string type;
 public:
-    ASTVariableDefinition(string name, string type) : name(move(name)), type(move(type)) {}
+    std::string name;
+    VariableType type;
+    ASTVariableDefinition(string name, VariableType type) : name(move(name)), type(move(type)) {}
     std::string toString() override {
-        return "[VAR_DEF: " + name + " " + type + "]";
+        return "[VAR_DEF: " + name + " " + type.type + "]";
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
@@ -23,8 +23,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
-    string getType() { return type; };
-    string getName() { return name; };
+    ASTNodeType getType() override {
+        return AST_VARIABLE_DEFINITION;
+    }
 };
 
 

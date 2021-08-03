@@ -7,10 +7,10 @@
 #define STELLAR_ASTARRAYINDEXASSIGNMENT_H
 
 class ASTArrayIndexAssignment : public ASTNode {
+public:
     string name;
     ASTNode* index;
     ASTNode* value;
-public:
     ASTArrayIndexAssignment(string name, ASTNode* index, ASTNode* value) : name(move(name)), index(index), value(value) {}
     string toString() override {
         return "[ARR_ASSIGN: " + name + " at " + index->toString() + " to " + value->toString() + "]";
@@ -22,6 +22,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_ARRAY_INDEX_ASSIGNMENT;
+    }
 };
 
 #endif //STELLAR_ASTARRAYINDEXASSIGNMENT_H

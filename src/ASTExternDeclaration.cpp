@@ -17,9 +17,9 @@ llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
     vector<llvm::Type*> llvmArgTypes;
     for (const auto& at : argTypes) {
         llvm::Type* llvmType;
-        int ivt = getVariableTypeFromString(at);
+        int ivt = getPrimitiveVariableTypeFromString(at);
         if (ivt != -1) {
-            llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
+            llvmType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, context);
         } else if (classes->count(at)) {
             llvmType = llvm::PointerType::getUnqual(classes->at(at).type);
         } else {
@@ -32,7 +32,7 @@ llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
         }
         llvmArgTypes.push_back(llvmType);
     }
-    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByVariableType(returnType, context), llvmArgTypes, isVarArgs);
+    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByPrimitiveVariableType(returnType, context), llvmArgTypes, isVarArgs);
     llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
     return func;
 }

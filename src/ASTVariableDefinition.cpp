@@ -13,20 +13,21 @@ llvm::Value* ASTVariableDefinition::codegen(llvm::IRBuilder<>* builder,
                                             llvm::Module* module,
                                             map<string, string>* objectTypes,
                                             map<string, ClassData>* classes) {
-    int ivt = getVariableTypeFromString(type);
+    auto genericType = convertVariableTypeToString(type);
+    int ivt = getPrimitiveVariableTypeFromString(genericType);
     llvm::Type* llvmType;
     if (ivt != -1) {
-        llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
-    } else if (classes->count(type)) {
-        auto ptrTy = llvm::PointerType::getUnqual(classes->at(type).type);
+        llvmType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, context);
+    } else if (classes->count(genericType)) {
+        auto ptrTy = llvm::PointerType::getUnqual(classes->at(genericType).type);
         auto val = llvm::ConstantPointerNull::get(ptrTy);
         auto alloca = builder->CreateAlloca(ptrTy, nullptr, name);
         builder->CreateStore(val, alloca);
         namedValues->insert({ name, alloca });
-        objectTypes->insert({ name, type });
+        objectTypes->insert({ name, genericType });
         return alloca;
     } else {
-        cerr << "Error: unknown variable type " << type << endl;
+        cerr << "Error: unknown variable type " << genericType << endl;
         exit(EXIT_FAILURE);
     }
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, name);

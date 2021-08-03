@@ -7,8 +7,8 @@
 #define STELLAR_ASTNOTEXPRESSION_H
 
 class ASTNotExpression : public ASTNode {
-    ASTNode* value;
 public:
+    ASTNode* value;
     explicit ASTNotExpression(ASTNode* value) : value(value) {}
     string toString() override {
         return "[NOT: " + value->toString() + "]";
@@ -20,6 +20,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_NOT_EXPRESSION;
+    }
 };
 
 

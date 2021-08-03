@@ -27,41 +27,43 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
     vector<llvm::Type*> argTypes;
     if (!func) {
         for (const auto& arg : args) {
-            cout << "Processing arg " << arg->getName() << " of type " << arg->getType() << endl;
+            cout << "Processing arg " << arg->name << " of type " << arg->type.type << endl;
             llvm::Type* llvmType;
-            int ivt = getVariableTypeFromString(arg->getType());
+            string genericType = convertVariableTypeToString(arg->type);
+            int ivt = getPrimitiveVariableTypeFromString(genericType);
             if (ivt != -1) {
-                llvmType = getLLVMTypeByVariableType((VariableType) ivt, context);
-            } else if (classes->count(arg->getType())) {
-                cout << "Arg " << arg->getName() << " is an object" << endl;
-                llvmType = llvm::PointerType::getUnqual(classes->at(arg->getType()).type);
-                objectTypes->insert({ arg->getName(), arg->getType() });
+                llvmType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, context);
+            } else if (classes->count(genericType)) {
+                cout << "Arg " << arg->name << " is an object" << endl;
+                llvmType = llvm::PointerType::getUnqual(classes->at(genericType).type);
+                objectTypes->insert({ arg->name, genericType });
             } else {
-                cerr << "Error: unknown type " << arg->getType() << endl;
+                cerr << "Error: unknown type " << genericType << endl;
                 exit(EXIT_FAILURE);
             }
             argTypes.push_back(llvmType);
         }
         cout << "Args processed" << endl;
         llvm::Type* llvmReturnType;
-        int rtt = getVariableTypeFromString(returnType);
+        auto genericReturnType = convertVariableTypeToString(returnType);
+        int rtt = getPrimitiveVariableTypeFromString(genericReturnType);
         if (rtt != -1) {
-            llvmReturnType = getLLVMTypeByVariableType((VariableType) rtt, context);
-        } else if (classes->count(returnType)) {
+            llvmReturnType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) rtt, context);
+        } else if (classes->count(genericReturnType)) {
             cout << "Function returns object" << endl;
             // https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/basic-constructs/functions.html
             // This says that you need to use the return value as a parameter to the function to implement returning objects,
             // but returning a pointer seems to work fine. They might have been only talking about pass-by-value
-            llvmReturnType = llvm::PointerType::get(classes->at(returnType).type, 0);
+            llvmReturnType = llvm::PointerType::get(classes->at(genericReturnType).type, 0);
         } else {
-            cerr << "Error: unknown return type " << returnType << endl;
+            cerr << "Error: unknown return type " << genericReturnType << endl;
             exit(EXIT_FAILURE);
         }
         llvm::FunctionType* ft = llvm::FunctionType::get(llvmReturnType, argTypes, false);
         func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
         unsigned index = 0;
         for (auto &arg : func->args()) {
-            arg.setName(args[index++]->getName());
+            arg.setName(args[index++]->name);
         }
     } else {
         // Get arg types
@@ -84,7 +86,7 @@ llvm::Value* ASTFunctionDefinition::codegen(llvm::IRBuilder<>* builder,
         builder->CreateStore(&arg, alloca);
         namedValues->insert({ arg.getName().str(), alloca });
         if (arg.getType()->isPointerTy() && arg.getType()->getPointerElementType()->isStructTy()) {
-            objectTypes->insert({ arg.getName().str(), args.at(index - 1)->getType() });
+            objectTypes->insert({ arg.getName().str(), convertVariableTypeToString(args.at(index - 1)->type) });
         }
     }
     cout << "Args initialized" << endl;

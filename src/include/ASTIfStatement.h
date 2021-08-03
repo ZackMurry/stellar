@@ -8,12 +8,11 @@
 #define STELLAR_ASTIFSTATEMENT_H
 
 
-// todo: logical and
 class ASTIfStatement : public ASTNode {
+public:
     ASTNode* condition;
     vector<ASTNode*> ifBody;
     vector<ASTNode*> elseBody;
-public:
     ASTIfStatement(ASTNode* condition, vector<ASTNode*> ifBody, vector<ASTNode*> elseBody) : condition(condition), ifBody(move(ifBody)), elseBody(move(elseBody)) {}
     string toString() override {
         string s = "[IF_STMT: condition: " + condition->toString() + " ifBody: [";
@@ -34,6 +33,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_IF_STATEMENT;
+    }
 };
 
 

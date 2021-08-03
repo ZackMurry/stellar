@@ -9,10 +9,10 @@
 using namespace std;
 
 class ASTNumberExpression : public ASTNode {
-    string val;
-    VariableType type;
 public:
-    ASTNumberExpression(string val, VariableType type) : val(move(val)), type(type) {}
+    string val;
+    PrimitiveVariableType type;
+    ASTNumberExpression(string val, PrimitiveVariableType type) : val(move(val)), type(type) {}
     string toString() override {
         return "[NUMBER: " + val + " type: " + to_string(type) + "]";
     }
@@ -23,6 +23,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_NUMBER_EXPRESSION;
+    }
 };
 
 

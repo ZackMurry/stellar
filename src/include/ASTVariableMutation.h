@@ -19,11 +19,11 @@ enum MutationPosition {
 };
 
 class ASTVariableMutation : public ASTNode {
+public:
     string name;
     ASTNode* change;
     MutationType mutationType;
     MutationPosition mutationPosition;
-public:
     ASTVariableMutation(string name, ASTNode* change, MutationType mutationType, MutationPosition mutationPosition) : name(move(name)), change(change), mutationType(mutationType), mutationPosition(mutationPosition) {}
     string toString() override {
         return "[VAR_MUT: " + name + " change:  " + change->toString() + " type: " + to_string(mutationType) + " pos: " +
@@ -36,6 +36,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_VARIABLE_MUTATION;
+    }
 };
 
 

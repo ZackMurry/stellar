@@ -25,9 +25,9 @@ enum ExpressionOperator {
 };
 
 class ASTBinaryExpression : public ASTNode {
+public:
     ExpressionOperator op;
     ASTNode *lhs, *rhs;
-public:
     ASTBinaryExpression(ExpressionOperator op, ASTNode* lhs, ASTNode* rhs) : op(op), lhs(lhs), rhs(rhs) {}
     string toString() override {
         return "[BIN_EXP: " + to_string(op) + " " + lhs->toString() + " " + rhs->toString() + "]";
@@ -39,6 +39,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_BINARY_EXPRESSION;
+    }
 };
 
 #endif //STELLAR_ASTBINARYEXPRESSION_H

@@ -11,11 +11,23 @@ llvm::Value* ASTClassInstantiation::codegen(llvm::IRBuilder<> *builder,
                                             llvm::Module *module,
                                             map<string, string>* objectTypes,
                                             map<string, ClassData>* classes) {
-    if (!classes->count(className)) {
-        cerr << "Error: expected valid class type for class instantiation but instead found " << className << endl;
+    cout << "ASTClassInstantation::codegen" << endl;
+    string genericClassName = className;
+    if (!genericTypes.empty()) {
+        genericClassName += "<";
+        for (int i = 0; i < genericTypes.size(); i++) {
+            if (i != 0) {
+                genericClassName += ",";
+            }
+            genericClassName += convertVariableTypeToString(genericTypes.at(i));
+        }
+        genericClassName += ">";
+    }
+    if (!classes->count(genericClassName)) {
+        cerr << "Error: expected valid class type for class instantiation but instead found " << genericClassName << endl;
         exit(EXIT_FAILURE);
     }
-    auto c = classes->at(className).type;
+    auto c = classes->at(genericClassName).type;
     auto alloca = builder->CreateAlloca(llvm::PointerType::getUnqual(c), nullptr, identifier);
     auto inst = llvm::CallInst::CreateMalloc(
             builder->GetInsertBlock(),
@@ -27,16 +39,16 @@ llvm::Value* ASTClassInstantiation::codegen(llvm::IRBuilder<> *builder,
             identifier);
     builder->CreateStore(builder->Insert(inst), alloca);
     namedValues->insert({ identifier, alloca });
-    objectTypes->insert({ identifier, className });
+    objectTypes->insert({ identifier, genericClassName });
     // todo: constructors that have no parameters but still have effects
     if (!args.empty()) {
-        llvm::Function* constructor = module->getFunction(className + "__new");
+        llvm::Function* constructor = module->getFunction(genericClassName + "__new");
         if (!constructor) {
-            cerr << "Error: no constructor found for class " << className << endl;
+            cerr << "Error: no constructor found for class " << genericClassName << endl;
             exit(EXIT_FAILURE);
         }
         if (constructor->arg_size() != args.size() + 1) {
-            cerr << "Error: incorrect number of arguments passed to constructor of " << className << endl;
+            cerr << "Error: incorrect number of arguments passed to constructor of " << genericClassName << endl;
             exit(EXIT_FAILURE);
         }
         vector<llvm::Value*> argsV;

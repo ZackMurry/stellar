@@ -11,8 +11,8 @@
 using namespace std;
 
 class ASTStringExpression : public ASTNode {
-    string val;
 public:
+    string val;
     explicit ASTStringExpression(string val) : val(move(val)) {}
     string toString() override {
         return "[STRING: " + val + "]";
@@ -24,6 +24,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_STRING_EXPRESSION;
+    }
 };
 
 

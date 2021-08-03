@@ -7,8 +7,8 @@
 #define STELLAR_ASTBOOLEANEXPRESSION_H
 
 class ASTBooleanExpression : public ASTNode {
-    bool value;
 public:
+    bool value;
     explicit ASTBooleanExpression(bool value) : value(value) {}
     string toString() override {
         string s = "[BOOL: ";
@@ -26,6 +26,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_BOOLEAN_EXPRESSION;
+    }
 };
 
 

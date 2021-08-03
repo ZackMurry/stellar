@@ -7,9 +7,9 @@
 #define STELLAR_ASTWHILEEXPRESSION_H
 
 class ASTWhileExpression : public ASTNode {
+public:
     ASTNode* condition;
     vector<ASTNode*> body;
-public:
     ASTWhileExpression(ASTNode* condition, vector<ASTNode*> body) : condition(condition), body(move(body)) {}
     string toString() override {
         string s = "[WHILE: condition: " + condition->toString() + " body: [";
@@ -25,6 +25,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_WHILE_EXPRESSION;
+    }
 };
 
 #endif //STELLAR_ASTWHILEEXPRESSION_H

@@ -9,11 +9,11 @@
 
 // todo: logical and
 class ASTForExpression : public ASTNode {
+public:
     ASTNode* initializer;
     ASTNode* condition;
     ASTNode* action;
     vector<ASTNode*> body;
-public:
     ASTForExpression(ASTNode* initializer, ASTNode* condition, ASTNode* action, vector<ASTNode*> body) : initializer(initializer), condition(condition), action(action), body(move(body)) {}
     string toString() override {
         string s = "[FOR: init: " + (initializer ? initializer->toString() : "none") + " condition: " + (condition ? condition->toString() : "none") + " action: " + (action ? action->toString() : "none") + " body: [";
@@ -29,6 +29,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_FOR_EXPRESSION;
+    }
 };
 
 #endif //STELLAR_ASTFOREXPRESSION_H

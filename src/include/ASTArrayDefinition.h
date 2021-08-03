@@ -9,10 +9,10 @@
 using namespace std;
 
 class ASTArrayDefinition : public ASTNode {
+public:
     string name;
     string elementType;
     ASTNode* length;
-public:
     ASTArrayDefinition(string name, string elementType, ASTNode* length) : name(move(name)), elementType(move(elementType)), length(length) {}
     string toString() override {
         return "[ARR_DEF: " + name + " " + elementType + " size: " + length->toString() + "]";
@@ -24,6 +24,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_ARRAY_DEFINITION;
+    }
 };
 
 

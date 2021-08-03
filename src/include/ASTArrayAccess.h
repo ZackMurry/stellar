@@ -12,9 +12,9 @@ using namespace std;
 llvm::Type* getLLVMPtrTypeByType(llvm::Type* type, llvm::LLVMContext* context);
 
 class ASTArrayAccess : public ASTNode {
+public:
     string name;
     ASTNode* index;
-public:
     ASTArrayAccess(string name, ASTNode* index) : name(move(name)), index(index) {}
     string toString() override {
         return "[ARR_ACCESS: " + name + " at " + index->toString() + "]";
@@ -26,6 +26,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_ARRAY_ACCESS;
+    }
 };
 
 

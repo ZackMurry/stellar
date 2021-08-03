@@ -5,19 +5,26 @@
 #include "parser.h"
 #include "ASTFunctionDefinition.h"
 #include <string>
+#include <utility>
 #ifndef STELLAR_ASTCLASSDEFINITION_H
 #define STELLAR_ASTCLASSDEFINITION_H
 
 using namespace std;
 
 class ASTClassDefinition : public ASTNode {
+public:
     string name;
     vector<ClassFieldDefinition> fields;
     map<string, ASTFunctionDefinition*> methods;
-public:
-    explicit ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, map<string, ASTFunctionDefinition*> methods) : name(move(name)), fields(move(fields)), methods(move(methods)) {}
+    vector<VariableType> genericTypes;
+    vector<vector<VariableType>> genericUsages;
+    explicit ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, map<string, ASTFunctionDefinition*> methods, vector<VariableType> genericTypes) : name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)) {}
     string toString() override {
-        return "[CLASS_DEF: " + name + " num fields: " + to_string(fields.size()) + "]";
+        string s = "[CLASS_DEF: " + name + " num fields: " + to_string(fields.size()) + " methods: [";
+        for (const auto& method : methods) {
+            s += method.second->toString();
+        }
+        return s + "]]";
     }
     llvm::Value* codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
@@ -26,6 +33,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_CLASS_DEFINITION;
+    }
 };
 
 

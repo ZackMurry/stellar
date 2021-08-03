@@ -10,9 +10,9 @@
 using namespace std;
 
 class ASTClassFieldAccess : public ASTNode {
+public:
     ASTNode* object;
     string fieldName;
-public:
     ASTClassFieldAccess(ASTNode* object, string fieldName) : object(object), fieldName(move(fieldName)) {}
     string toString() override {
         return "[CLASS_FIELD_ACC: " + object->toString() + " field: " + fieldName + "]";
@@ -24,6 +24,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_CLASS_FIELD_ACCESS;
+    }
 };
 
 

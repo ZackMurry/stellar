@@ -10,10 +10,10 @@
 using namespace std;
 
 class ASTClassFieldStore : public ASTNode {
+public:
     ASTNode* object;
     string fieldName;
     ASTNode* value;
-public:
     ASTClassFieldStore(ASTNode* object, string fieldName, ASTNode* value) : object(object), fieldName(move(fieldName)), value(value) {}
     string toString() override {
         return "[CLASS_FIELD_STO: object: " + object->toString() + " field: " + fieldName + " value: " + value->toString() + "]";
@@ -25,6 +25,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_CLASS_FIELD_STORE;
+    }
 };
 
 

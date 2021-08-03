@@ -9,8 +9,8 @@
 #define STELLAR_ASTNULLCHECKEXPRESSION_H
 
 class ASTNullCheckExpression : public ASTNode {
-    ASTNode* value;
 public:
+    ASTNode* value;
     explicit ASTNullCheckExpression(ASTNode* value) : value(value) {}
     string toString() override {
         return "[IS_NULL: " + value->toString() + "]";
@@ -22,6 +22,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_NULL_CHECK_EXPRESSION;
+    }
 };
 
 

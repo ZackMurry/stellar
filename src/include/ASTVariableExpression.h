@@ -9,8 +9,8 @@
 using namespace std;
 
 class ASTVariableExpression : public ASTNode {
-    string name;
 public:
+    string name;
     explicit ASTVariableExpression(string name) : name(move(name)) {}
     string toString() override {
         return "[VARIABLE: " + name + "]";
@@ -22,6 +22,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_VARIABLE_EXPRESSION;
+    }
 };
 
 #endif //STELLAR_ASTVARIABLEEXPRESSION_H

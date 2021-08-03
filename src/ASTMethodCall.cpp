@@ -26,7 +26,7 @@ llvm::Value* ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
         exit(EXIT_FAILURE);
     }
     if (method->arg_size() != args.size() + 1) {
-        cerr << "Error: incorrect number of arguments passed to method " << methodName << " of class " << className << endl;
+        cerr << "Error: incorrect number of arguments passed to method " << methodName << " of class " << className << " (expected " << method->arg_size() - 1 << " but got " << args.size() << ")" << endl;
         exit(EXIT_FAILURE);
     }
     vector<llvm::Value*> argsV;

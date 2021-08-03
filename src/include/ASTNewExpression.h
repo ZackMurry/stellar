@@ -7,10 +7,11 @@
 #define STELLAR_ASTNEWEXPRESSION_H
 
 class ASTNewExpression : public ASTNode {
+public:
     string className;
     vector<ASTNode*> args;
-public:
-    ASTNewExpression(string className, vector<ASTNode*> args) : className(move(className)), args(move(args)) {}
+    vector<VariableType> genericTypes;
+    ASTNewExpression(string className, vector<ASTNode*> args, vector<VariableType> genericTypes) : className(move(className)), args(move(args)), genericTypes(move(genericTypes)) {}
     string toString() override {
         return "[CLASS_INST: type: " + className + " num args: " + to_string(args.size()) + "]";
     }
@@ -21,6 +22,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_NEW_EXPRESSION;
+    }
 };
 
 #endif //STELLAR_ASTNEWEXPRESSION_H

@@ -9,8 +9,8 @@
 using namespace std;
 
 class ASTReturn : public ASTNode {
-    ASTNode* exp;
 public:
+    ASTNode* exp;
     explicit ASTReturn(ASTNode* exp) : exp(exp) {}
     string toString() override {
         if (!exp) {
@@ -25,6 +25,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_RETURN;
+    }
 };
 
 

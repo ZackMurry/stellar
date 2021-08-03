@@ -11,13 +11,13 @@
 using namespace std;
 
 class ASTVariableDeclaration : public ASTNode {
-    std::string name;
-    string type;
-    ASTNode* value;
 public:
-    ASTVariableDeclaration(string name, string type, ASTNode* value) : name(move(name)), type(move(type)), value(value) {}
+    string name;
+    VariableType type;
+    ASTNode* value;
+    ASTVariableDeclaration(string name, VariableType type, ASTNode* value) : name(move(name)), type(move(type)), value(value) {}
     string toString() override {
-        return "[VAR_DECL: " + name + " " + type + " " + value->toString() + "]";
+        return "[VAR_DECL: " + name + " " + type.type + " " + value->toString() + "]";
     }
     llvm::Value *codegen(llvm::IRBuilder<>* builder,
                          llvm::LLVMContext* context,
@@ -26,6 +26,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_VARIABLE_DECLARATION;
+    }
 };
 
 

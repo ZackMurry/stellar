@@ -9,9 +9,9 @@
 using namespace std;
 
 class ASTVariableAssignment : public ASTNode {
+public:
     string name;
     ASTNode* value;
-public:
     ASTVariableAssignment(string name, ASTNode* value) : name(move(name)), value(value) {};
     string toString() override {
         return "[VAR_ASSIGN: " + name + " " + value->toString() + "]";
@@ -23,6 +23,9 @@ public:
                          llvm::Module* module,
                          map<string, string>* objectTypes,
                          map<string, ClassData>* classes) override;
+    ASTNodeType getType() override {
+        return AST_VARIABLE_ASSIGNMENT;
+    }
 };
 
 
