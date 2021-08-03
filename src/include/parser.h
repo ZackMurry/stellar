@@ -86,19 +86,24 @@ llvm::Type* getLLVMTypeByPrimitiveVariableType(PrimitiveVariableType type, llvm:
 
 int getPrimitiveVariableTypeFromString(const string& type);
 
+struct CodegenData {
+    llvm::IRBuilder<>* builder;
+    llvm::LLVMContext* context;
+    llvm::BasicBlock* entryBlock;
+    map<string, llvm::Value*>* namedValues;
+    llvm::Module* module;
+    map<string, string>* objectTypes;
+    map<string, ClassData>* classes;
+    map<string, VariableType>* generics;
+};
+
 class ASTNode {
 public:
     ~ASTNode() = default;
     virtual string toString() {
         return "ROOT_NODE";
     }
-    virtual llvm::Value* codegen(llvm::IRBuilder<>* builder,
-                         llvm::LLVMContext* context,
-                         llvm::BasicBlock* entryBlock,
-                         std::map<std::string, llvm::Value*>* namedValues,
-                         llvm::Module* module,
-                         map<string, string>* objectTypes,
-                         map<string, ClassData>* classes) = 0;
+    virtual llvm::Value* codegen(CodegenData data) = 0;
     virtual ASTNodeType getType() {
         return AST_NODE;
     }

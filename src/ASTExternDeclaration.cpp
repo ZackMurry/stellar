@@ -7,21 +7,15 @@
 
 using namespace std;
 
-llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
-                                           llvm::LLVMContext* context,
-                                           llvm::BasicBlock* entryBlock,
-                                           map<string, llvm::Value*>* namedValues,
-                                           llvm::Module* module,
-                                           map<string, string>* objectTypes,
-                                           map<string, ClassData>* classes) {
+llvm::Value* ASTExternDeclaration::codegen(CodegenData data) {
     vector<llvm::Type*> llvmArgTypes;
     for (const auto& at : argTypes) {
         llvm::Type* llvmType;
         int ivt = getPrimitiveVariableTypeFromString(at);
         if (ivt != -1) {
-            llvmType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, context);
-        } else if (classes->count(at)) {
-            llvmType = llvm::PointerType::getUnqual(classes->at(at).type);
+            llvmType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, data.context);
+        } else if (data.classes->count(at)) {
+            llvmType = llvm::PointerType::getUnqual(data.classes->at(at).type);
         } else {
             cerr << "Error: unknown type " << at << endl;
             exit(EXIT_FAILURE);
@@ -32,8 +26,8 @@ llvm::Value* ASTExternDeclaration::codegen(llvm::IRBuilder<>* builder,
         }
         llvmArgTypes.push_back(llvmType);
     }
-    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByPrimitiveVariableType(returnType, context), llvmArgTypes, isVarArgs);
-    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *module);
+    llvm::FunctionType* ft = llvm::FunctionType::get(getLLVMTypeByPrimitiveVariableType(returnType, data.context), llvmArgTypes, isVarArgs);
+    llvm::Function* func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, *data.module);
     return func;
 }
 

@@ -42,12 +42,12 @@ using namespace std;
 
 // todo: constructors
 // todo: string concatenation (probably using sprintf)
-// todo: generics
 // todo: argv and argc
 // todo: exit codes
 // todo: explicit casts
 // todo: functions with the same name but different signatures
 // todo: ternary expressions
+// todo: nested generics
 
 unsigned long parsingIndex = 0;
 
@@ -499,9 +499,8 @@ vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
 ASTNode* parseClassAccess(vector<Token> tokens, ASTNode* object);
 
 // Expects the parsingIndex to be at an opening parenthesis
-ASTNode* parseFunctionDefinition(vector<Token> tokens, const string& type, const string& name) {
+ASTNode* parseFunctionDefinition(vector<Token> tokens, const VariableType& returnType, const string& name) {
     cout << "Function definition" << endl;
-    // todo: generic return types
     vector<ASTVariableDefinition*> args;
     while (++parsingIndex < tokens.size()) {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
@@ -545,7 +544,7 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, const string& type, const
     vector<ASTNode*> body = getBodyOfBlock(tokens);
     cout << "body size: " << body.size() << endl;
     cout << "Arg size before creating: " << args.size() << endl;
-    return new ASTFunctionDefinition(name, args, body, { type });
+    return new ASTFunctionDefinition(name, args, body, returnType);
 }
 
 // Expects parsingIndex to be after ']'
@@ -600,7 +599,7 @@ ASTNode* parseVariableDeclaration(vector<Token> tokens, const string& type) {
     if (genericTypes.empty() && tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
         cout << "Function definition" << endl;
         // todo returning arrays from functions
-        return parseFunctionDefinition(tokens, type, name);
+        return parseFunctionDefinition(tokens, { type, genericTypes }, name);
     }
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "=") {
         if (tokens[parsingIndex].type == TOKEN_NEWLINE) {
@@ -1093,12 +1092,12 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
             methods.insert(
-                    {fieldName, (ASTFunctionDefinition *) parseFunctionDefinition(tokens, fieldType, fieldName)});
+                    {fieldName, (ASTFunctionDefinition *) parseFunctionDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName)});
         } else if (isConstructor) {
             printFatalErrorMessage("A field cannot have the type 'new'", tokens);
         } else {
             cout << "field: " << fieldName << endl;
-            fields.push_back({fieldName, fieldType, genericTypes});
+            fields.push_back({fieldName, fieldType, fieldGenericTypes});
         }
         if (tokens[parsingIndex].type != TOKEN_NEWLINE) {
             printFatalErrorMessage("expected new line after field or method declaration", tokens);

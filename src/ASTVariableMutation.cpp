@@ -4,49 +4,43 @@
 
 #include "include/ASTVariableMutation.h"
 
-llvm::Value * ASTVariableMutation::codegen(llvm::IRBuilder<> *builder,
-                                           llvm::LLVMContext *context,
-                                           llvm::BasicBlock *entryBlock,
-                                           std::map<std::string, llvm::Value *> *namedValues,
-                                           llvm::Module *module,
-                                           map<string, string> *objectTypes,
-                                           map<string, ClassData> *classes) {
+llvm::Value* ASTVariableMutation::codegen(CodegenData data) {
     cout << "Getting named val" << endl;
-    if (!namedValues->count(name)) {
+    if (!data.namedValues->count(name)) {
         cerr << "Error: illegal use of undeclared variable '" << name << "'" << endl;
         exit(EXIT_FAILURE);
     }
-    llvm::Value* var = namedValues->at(name);
-    auto* load = builder->CreateLoad(var); // Load before the variable is changed
+    llvm::Value* var = data.namedValues->at(name);
+    auto* load = data.builder->CreateLoad(var); // Load before the variable is changed
     llvm::Value* modified;
-    auto* rhs = change->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+    auto* rhs = change->codegen(data);
     if (load->getType()->isFloatingPointTy() && rhs->getType()->isIntegerTy()) {
         cout << "Cast" << endl;
-        rhs = builder->CreateSIToFP(rhs, load->getType(), "conv");
+        rhs = data.builder->CreateSIToFP(rhs, load->getType(), "conv");
     }
 
     if (load->getType()->isFloatingPointTy()) {
         if (mutationType == MUTATION_TYPE_ADD) {
-            modified = builder->CreateFAdd(load, rhs);
+            modified = data.builder->CreateFAdd(load, rhs);
         } else if (mutationType == MUTATION_TYPE_SUB){
-            modified = builder->CreateFSub(load, rhs);
+            modified = data.builder->CreateFSub(load, rhs);
         } else if (mutationType == MUTATION_TYPE_MUL) {
-            modified = builder->CreateFMul(load, rhs);
+            modified = data.builder->CreateFMul(load, rhs);
         } else {
-            modified = builder->CreateFDiv(load, rhs);
+            modified = data.builder->CreateFDiv(load, rhs);
         }
     } else {
         if (mutationType == MUTATION_TYPE_ADD) {
-            modified = builder->CreateAdd(load, rhs);
+            modified = data.builder->CreateAdd(load, rhs);
         } else if (mutationType == MUTATION_TYPE_SUB){
-            modified = builder->CreateSub(load, rhs);
+            modified = data.builder->CreateSub(load, rhs);
         } else if (mutationType == MUTATION_TYPE_MUL) {
-            modified = builder->CreateMul(load, rhs);
+            modified = data.builder->CreateMul(load, rhs);
         } else {
-            modified = builder->CreateSDiv(load, rhs);
+            modified = data.builder->CreateSDiv(load, rhs);
         }
     }
-    builder->CreateStore(modified, var);
+    data.builder->CreateStore(modified, var);
     if (mutationPosition == MUTATE_BEFORE) {
         return modified;
     }

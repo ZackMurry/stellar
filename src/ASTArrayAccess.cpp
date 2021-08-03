@@ -4,22 +4,16 @@
 
 #include "include/ASTArrayAccess.h"
 
-llvm::Value* ASTArrayAccess::codegen(llvm::IRBuilder<>* builder,
-                                     llvm::LLVMContext* context,
-                                     llvm::BasicBlock* entryBlock,
-                                     map<string, llvm::Value*>* namedValues,
-                                     llvm::Module* module,
-                                     map<string, string>* objectTypes,
-                                     map<string, ClassData>* classes) {
-    if (!namedValues->count(name)) {
+llvm::Value* ASTArrayAccess::codegen(CodegenData data) {
+    if (!data.namedValues->count(name)) {
         cerr << "Error: undeclared variable " << name << endl;
         exit(EXIT_FAILURE);
     }
-    auto* gep = builder->CreateInBoundsGEP(namedValues->at(name), index->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), "acctmp");
+    auto* gep = data.builder->CreateInBoundsGEP(data.namedValues->at(name), index->codegen(data), "acctmp");
     if (!gep->getType()->isPointerTy()) {
-        gep->mutateType(getLLVMPtrTypeByType(namedValues->at(name)->getType()->getPointerElementType(), context));
+        gep->mutateType(getLLVMPtrTypeByType(data.namedValues->at(name)->getType()->getPointerElementType(), data.context));
     }
-    return builder->CreateLoad(gep, "loadtmp");
+    return data.builder->CreateLoad(gep, "loadtmp");
 }
 
 llvm::Type* getLLVMPtrTypeByType(llvm::Type* type, llvm::LLVMContext* context) {

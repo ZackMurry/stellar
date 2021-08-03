@@ -4,26 +4,20 @@
 
 #include "include/ASTWhileExpression.h"
 
-llvm::Value * ASTWhileExpression::codegen(llvm::IRBuilder<> *builder,
-                                          llvm::LLVMContext *context,
-                                          llvm::BasicBlock *entryBlock,
-                                          std::map<std::string, llvm::Value *> *namedValues,
-                                          llvm::Module *module,
-                                          map<string, string> *objectTypes,
-                                          map<string, ClassData> *classes) {
-    llvm::Value* initConditionVal = condition->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
-    auto* loopBB = llvm::BasicBlock::Create(*context, "whilebody");
-    auto* mergeBB = llvm::BasicBlock::Create(*context, "mergewhile");
-    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(loopBB);
-    builder->CreateCondBr(initConditionVal, loopBB, mergeBB);
-    builder->SetInsertPoint(loopBB);
+llvm::Value* ASTWhileExpression::codegen(CodegenData data) {
+    llvm::Value* initConditionVal = condition->codegen(data);
+    auto* loopBB = llvm::BasicBlock::Create(*data.context, "whilebody");
+    auto* mergeBB = llvm::BasicBlock::Create(*data.context, "mergewhile");
+    data.builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(loopBB);
+    data.builder->CreateCondBr(initConditionVal, loopBB, mergeBB);
+    data.builder->SetInsertPoint(loopBB);
     for (auto const& line : body) {
-        line->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        line->codegen(data);
     }
     // Termination test
-    auto* terminationVal = condition->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
-    builder->CreateCondBr(terminationVal, loopBB, mergeBB);
-    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
-    builder->SetInsertPoint(mergeBB);
+    auto* terminationVal = condition->codegen(data);
+    data.builder->CreateCondBr(terminationVal, loopBB, mergeBB);
+    data.builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
+    data.builder->SetInsertPoint(mergeBB);
     return mergeBB;
 }

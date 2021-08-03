@@ -5,22 +5,16 @@
 #include "include/ASTMethodCall.h"
 #include "include/ASTClassFieldAccess.h"
 
-llvm::Value* ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
-                                     llvm::LLVMContext *context,
-                                     llvm::BasicBlock *entryBlock,
-                                     std::map<std::string, llvm::Value *> *namedValues,
-                                     llvm::Module *module,
-                                     map<string, string> *objectTypes,
-                                     map<string, ClassData> *classes) {
+llvm::Value* ASTMethodCall::codegen(CodegenData data) {
     cout << "ASTMethodCall::codegen" << endl;
-    auto parent = object->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+    auto parent = object->codegen(data);
     if (!parent->getType()->isPointerTy() || !parent->getType()->getPointerElementType()->isStructTy()) {
         cerr << "Error: unexpected field access of non-object variable" << endl;
         exit(EXIT_FAILURE);
     }
     string className = parent->getType()->getPointerElementType()->getStructName().str();
     string name = className + "__" + methodName;
-    llvm::Function* method = module->getFunction(name);
+    llvm::Function* method = data.module->getFunction(name);
     if (!method) {
         cerr << "Error: unknown reference to " << name << endl;
         exit(EXIT_FAILURE);
@@ -31,8 +25,8 @@ llvm::Value* ASTMethodCall::codegen(llvm::IRBuilder<> *builder,
     }
     vector<llvm::Value*> argsV;
     for (auto & arg : args) {
-        argsV.push_back(arg->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes));
+        argsV.push_back(arg->codegen(data));
     }
     argsV.push_back(parent);
-    return builder->CreateCall(method, argsV, "calltmp");
+    return data.builder->CreateCall(method, argsV, "calltmp");
 }

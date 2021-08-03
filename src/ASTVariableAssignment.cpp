@@ -5,19 +5,13 @@
 #include "include/ASTVariableAssignment.h"
 #include <iostream>
 
-llvm::Value* ASTVariableAssignment::codegen(llvm::IRBuilder<>* builder,
-                                            llvm::LLVMContext* context,
-                                            llvm::BasicBlock* entryBlock,
-                                            map<string, llvm::Value*>* namedValues,
-                                            llvm::Module* module,
-                                            map<string, string>* objectTypes,
-                                            map<string, ClassData>* classes) {
+llvm::Value* ASTVariableAssignment::codegen(CodegenData data) {
     cout << "Getting named val" << endl;
-    if (!namedValues->count(name)) {
+    if (!data.namedValues->count(name)) {
         cerr << "Error: illegal use of undeclared variable '" << name << "'" << endl;
         exit(EXIT_FAILURE);
     }
-    llvm::Value* var = namedValues->at(name);
-    builder->CreateStore(value->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), var);
+    llvm::Value* var = data.namedValues->at(name);
+    data.builder->CreateStore(value->codegen(data), var);
     return var;
 }

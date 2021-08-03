@@ -5,26 +5,20 @@
 #include "include/ASTNumberExpression.h"
 #include <iostream>
 
-llvm::Value* ASTNumberExpression::codegen(llvm::IRBuilder<>* builder,
-                                          llvm::LLVMContext* context,
-                                          llvm::BasicBlock* entryBlock,
-                                          map<string, llvm::Value*>* namedValues,
-                                          llvm::Module* module,
-                                          map<string, string>* objectTypes,
-                                          map<string, ClassData>* classes) {
+llvm::Value* ASTNumberExpression::codegen(CodegenData data) {
     if (type == VARIABLE_TYPE_I32) {
-        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), val, 10);
+        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*data.context), val, 10);
     } else if (type == VARIABLE_TYPE_F) {
-        return llvm::ConstantFP::get(llvm::Type::getFloatTy(*context), val);
+        return llvm::ConstantFP::get(llvm::Type::getFloatTy(*data.context), val);
     } else if (type == VARIABLE_TYPE_D) {
-        return llvm::ConstantFP::get(llvm::Type::getDoubleTy(*context), val);
+        return llvm::ConstantFP::get(llvm::Type::getDoubleTy(*data.context), val);
     } else if (type == VARIABLE_TYPE_I8) {
-        return llvm::ConstantInt::get(llvm::Type::getInt8Ty(*context), val, 10);
+        return llvm::ConstantInt::get(llvm::Type::getInt8Ty(*data.context), val, 10);
     } else if (type == VARIABLE_TYPE_I16) {
         cout << "i16 type" << endl;
-        return llvm::ConstantInt::get(llvm::Type::getInt16Ty(*context), val, 10);
+        return llvm::ConstantInt::get(llvm::Type::getInt16Ty(*data.context), val, 10);
     } else if (type == VARIABLE_TYPE_I64) {
-        return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context), val, 10);
+        return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*data.context), val, 10);
     } else {
         cerr << "Error: unimplemented number type " << type << endl;
         exit(EXIT_FAILURE);

@@ -15,13 +15,7 @@ public:
     string toString() override {
         return "[ARR_ASSIGN: " + name + " at " + index->toString() + " to " + value->toString() + "]";
     }
-    llvm::Value* codegen(llvm::IRBuilder<>* builder,
-                         llvm::LLVMContext* context,
-                         llvm::BasicBlock* entryBlock,
-                         map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module,
-                         map<string, string>* objectTypes,
-                         map<string, ClassData>* classes) override;
+    llvm::Value* codegen(CodegenData data) override;
     ASTNodeType getType() override {
         return AST_ARRAY_INDEX_ASSIGNMENT;
     }

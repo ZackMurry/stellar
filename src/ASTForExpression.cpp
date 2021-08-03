@@ -4,41 +4,35 @@
 
 #include "include/ASTForExpression.h"
 
-llvm::Value* ASTForExpression::codegen(llvm::IRBuilder<> *builder,
-                                        llvm::LLVMContext *context,
-                                        llvm::BasicBlock *entryBlock,
-                                        std::map<std::string, llvm::Value *> *namedValues,
-                                        llvm::Module *module,
-                                        map<string, string> *objectTypes,
-                                        map<string, ClassData> *classes) {
+llvm::Value* ASTForExpression::codegen(CodegenData data) {
     if (initializer) {
         // todo: reduce scope of variable declarations to loop body instead of parent
-        initializer->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        initializer->codegen(data);
     }
-    auto* loopBB = llvm::BasicBlock::Create(*context, "forbody");
-    auto* mergeBB = llvm::BasicBlock::Create(*context, "mergefor");
+    auto* loopBB = llvm::BasicBlock::Create(*data.context, "forbody");
+    auto* mergeBB = llvm::BasicBlock::Create(*data.context, "mergefor");
     if (condition) {
-        llvm::Value* initConditionVal = condition->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
-        builder->CreateCondBr(initConditionVal, loopBB, mergeBB);
+        llvm::Value* initConditionVal = condition->codegen(data);
+        data.builder->CreateCondBr(initConditionVal, loopBB, mergeBB);
     } else {
-        builder->CreateBr(loopBB);
+        data.builder->CreateBr(loopBB);
     }
-    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(loopBB);
-    builder->SetInsertPoint(loopBB);
+    data.builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(loopBB);
+    data.builder->SetInsertPoint(loopBB);
     for (auto const& line : body) {
-        line->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        line->codegen(data);
     }
     if (action) {
-        action->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+        action->codegen(data);
     }
     // Termination test
     if (condition) {
-        auto* terminationVal = condition->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
-        builder->CreateCondBr(terminationVal, loopBB, mergeBB);
+        auto* terminationVal = condition->codegen(data);
+        data.builder->CreateCondBr(terminationVal, loopBB, mergeBB);
     } else {
-        builder->CreateBr(loopBB);
+        data.builder->CreateBr(loopBB);
     }
-    builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
-    builder->SetInsertPoint(mergeBB);
+    data.builder->GetInsertBlock()->getParent()->getBasicBlockList().push_back(mergeBB);
+    data.builder->SetInsertPoint(mergeBB);
     return mergeBB;
 }

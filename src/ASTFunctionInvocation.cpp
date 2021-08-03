@@ -7,14 +7,8 @@
 
 using namespace std;
 
-llvm::Value* ASTFunctionInvocation::codegen(llvm::IRBuilder<>* builder,
-                                            llvm::LLVMContext* context,
-                                            llvm::BasicBlock* entryBlock,
-                                            map<string, llvm::Value*>* namedValues,
-                                            llvm::Module* module,
-                                            map<string, string>* objectTypes,
-                                            map<string, ClassData>* classes) {
-    llvm::Function* calleeFunc = module->getFunction(name);
+llvm::Value* ASTFunctionInvocation::codegen(CodegenData data) {
+    llvm::Function* calleeFunc = data.module->getFunction(name);
     if (!calleeFunc) {
         cerr << "Error: unknown reference to " << name << endl;
         exit(EXIT_FAILURE);
@@ -25,7 +19,7 @@ llvm::Value* ASTFunctionInvocation::codegen(llvm::IRBuilder<>* builder,
     }
     vector<llvm::Value*> argsV;
     for (auto & arg : args) {
-        argsV.push_back(arg->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes));
+        argsV.push_back(arg->codegen(data));
     }
-    return builder->CreateCall(calleeFunc, argsV, "calltmp");
+    return data.builder->CreateCall(calleeFunc, argsV, "calltmp");
 }

@@ -3,15 +3,10 @@
 //
 
 #include "include/ASTClassInstantiation.h"
+#include "include/ASTClassDefinition.h"
 
-llvm::Value* ASTClassInstantiation::codegen(llvm::IRBuilder<> *builder,
-                                            llvm::LLVMContext *context,
-                                            llvm::BasicBlock *entryBlock,
-                                            map<string, llvm::Value *> *namedValues,
-                                            llvm::Module *module,
-                                            map<string, string>* objectTypes,
-                                            map<string, ClassData>* classes) {
-    cout << "ASTClassInstantation::codegen" << endl;
+llvm::Value* ASTClassInstantiation::codegen(CodegenData data) {
+    cout << "ASTClassInstantiation::codegen" << endl;
     string genericClassName = className;
     if (!genericTypes.empty()) {
         genericClassName += "<";
@@ -19,30 +14,34 @@ llvm::Value* ASTClassInstantiation::codegen(llvm::IRBuilder<> *builder,
             if (i != 0) {
                 genericClassName += ",";
             }
-            genericClassName += convertVariableTypeToString(genericTypes.at(i));
+            if (data.generics->count(genericTypes.at(i).type)) {
+                genericClassName += convertVariableTypeToString(data.generics->at(genericTypes.at(i).type));
+            } else {
+                genericClassName += convertVariableTypeToString(genericTypes.at(i));
+            }
         }
         genericClassName += ">";
     }
-    if (!classes->count(genericClassName)) {
+    if (!data.classes->count(genericClassName)) {
         cerr << "Error: expected valid class type for class instantiation but instead found " << genericClassName << endl;
         exit(EXIT_FAILURE);
     }
-    auto c = classes->at(genericClassName).type;
-    auto alloca = builder->CreateAlloca(llvm::PointerType::getUnqual(c), nullptr, identifier);
+    auto c = data.classes->at(genericClassName).type;
+    auto alloca = data.builder->CreateAlloca(llvm::PointerType::getUnqual(c), nullptr, identifier);
     auto inst = llvm::CallInst::CreateMalloc(
-            builder->GetInsertBlock(),
-            llvm::Type::getInt64PtrTy(*context),
+            data.builder->GetInsertBlock(),
+            llvm::Type::getInt64PtrTy(*data.context),
             c,
             llvm::ConstantExpr::getSizeOf(c),
             nullptr,
             nullptr,
             identifier);
-    builder->CreateStore(builder->Insert(inst), alloca);
-    namedValues->insert({ identifier, alloca });
-    objectTypes->insert({ identifier, genericClassName });
+    data.builder->CreateStore(data.builder->Insert(inst), alloca);
+    data.namedValues->insert({ identifier, alloca });
+    data.objectTypes->insert({ identifier, genericClassName });
     // todo: constructors that have no parameters but still have effects
     if (!args.empty()) {
-        llvm::Function* constructor = module->getFunction(genericClassName + "__new");
+        llvm::Function* constructor = data.module->getFunction(genericClassName + "__new");
         if (!constructor) {
             cerr << "Error: no constructor found for class " << genericClassName << endl;
             exit(EXIT_FAILURE);
@@ -53,10 +52,10 @@ llvm::Value* ASTClassInstantiation::codegen(llvm::IRBuilder<> *builder,
         }
         vector<llvm::Value*> argsV;
         for (auto & arg : args) {
-            argsV.push_back(arg->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes));
+            argsV.push_back(arg->codegen(data));
         }
-        argsV.push_back(builder->CreateLoad(alloca)); // Add object instance parameter
-        builder->CreateCall(constructor, argsV, "newtmp");
+        argsV.push_back(data.builder->CreateLoad(alloca)); // Add object instance parameter
+        data.builder->CreateCall(constructor, argsV, "newtmp");
     }
     return alloca;
 }

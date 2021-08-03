@@ -4,15 +4,9 @@
 
 #include "include/ASTClassFieldAccess.h"
 
-llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
-                                          llvm::LLVMContext *context,
-                                          llvm::BasicBlock *entryBlock,
-                                          map<string, llvm::Value *> *namedValues,
-                                          llvm::Module *module,
-                                          map<string, string>* objectTypes,
-                                          map<string, ClassData>* classes) {
+llvm::Value* ASTClassFieldAccess::codegen(CodegenData data) {
     cout << "ASTClassFieldAccess::codegen" << endl;
-    auto parent = object->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+    auto parent = object->codegen(data);
     if (!parent->getType()->isPointerTy() || !parent->getType()->getPointerElementType()->isStructTy()) {
         cerr << "Error: unexpected field access of non-object variable" << endl;
         exit(EXIT_FAILURE);
@@ -20,7 +14,7 @@ llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
     string className = parent->getType()->getPointerElementType()->getStructName().str();
     int fieldNumber = -1;
     int i = 0;
-    for (const auto& f : classes->at(className).fields) {
+    for (const auto& f : data.classes->at(className).fields) {
         if (f.name == fieldName) {
             fieldNumber = i;
             break;
@@ -31,7 +25,7 @@ llvm::Value* ASTClassFieldAccess::codegen(llvm::IRBuilder<> *builder,
         cerr << "Error: unknown field of class " << className << ": " << fieldName << endl;
         exit(EXIT_FAILURE);
     }
-    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*context, llvm::APInt(32, fieldNumber)) };
-    llvm::Value* gep = builder->CreateGEP(parent, elementIndex);
-    return builder->CreateLoad(gep);
+    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, fieldNumber)) };
+    llvm::Value* gep = data.builder->CreateGEP(parent, elementIndex);
+    return data.builder->CreateLoad(gep);
 }

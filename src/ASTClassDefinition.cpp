@@ -3,8 +3,28 @@
 
 #include "include/ASTClassDefinition.h"
 
+VariableType mapVariableTypeToGenericTypes(const VariableType& v, const vector<VariableType>& genericTypes, const vector<VariableType>& genericUsage) {
+    VariableType result;
+    bool isTypeNameGeneric = false;
+    for (int i = 0; i < genericTypes.size(); i++) {
+        if (v.type == genericTypes.at(i).type) {
+            result.type = genericUsage.at(i).type;
+            isTypeNameGeneric = true;
+            break;
+        }
+    }
+    if (!isTypeNameGeneric) {
+        result.type = v.type;
+    }
+    for (const auto& type : v.genericTypes) {
+        result.genericTypes.push_back(mapVariableTypeToGenericTypes(type, genericTypes, genericUsage));
+    }
+    return result;
+}
+
 llvm::Type* getLLVMGenericTypeByVariableType(const VariableType& v, map<string, ClassData>* classes, const vector<VariableType>& genericTypes, const vector<VariableType>& genericUsage, llvm::LLVMContext* context, llvm::Type* classType, const string& className) {
-    string genericString = convertVariableTypeToString(v);
+    VariableType cv = mapVariableTypeToGenericTypes(v, genericTypes, genericUsage);
+    string genericString = convertVariableTypeToString(cv);
     cout << "genericString: " << genericString << ": " << classes->count(genericString) << ": " << classes->count("ListNode<i32>") << endl;
     int ivt = getPrimitiveVariableTypeFromString(genericString);
     if (ivt != -1) {
@@ -14,7 +34,7 @@ llvm::Type* getLLVMGenericTypeByVariableType(const VariableType& v, map<string, 
     } else {
         // Check generic names
         for (int i = 0; i < genericTypes.size(); i++) {
-            if (genericTypes.at(i).type == v.type) {
+            if (genericTypes.at(i).type == cv.type) {
                 string genericValue = genericUsage.at(i).type;
                 int vt = getPrimitiveVariableTypeFromString(genericValue);
                 if (vt != -1) {
@@ -30,26 +50,21 @@ llvm::Type* getLLVMGenericTypeByVariableType(const VariableType& v, map<string, 
     }
 }
 
-llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
-                                         llvm::LLVMContext *context,
-                                         llvm::BasicBlock *entryBlock,
-                                         map<string, llvm::Value *> *namedValues,
-                                         llvm::Module *module,
-                                         map<string, string>* objectTypes,
-                                         map<string, ClassData>* classes) {
+llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
+    cout << "Codegen for class " << name << endl;
     if (genericTypes.empty()) {
-        auto classType = llvm::StructType::create(*context, name);
+        auto classType = llvm::StructType::create(*data.context, name);
         vector<llvm::Type*> fieldLLVMTypes;
         vector<ClassFieldType> llvmFields;
         for (const auto& field : fields) {
             cout << "Processing field " << field.name << endl;
             int variableType = getPrimitiveVariableTypeFromString(field.type.type);
             if (variableType != -1) {
-                auto t = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) variableType, context);
+                auto t = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) variableType, data.context);
                 fieldLLVMTypes.push_back(t);
                 llvmFields.push_back({field.name, "", t });
-            } else if (classes->count(field.type.type)) {
-                auto t = llvm::PointerType::getUnqual(classes->at(field.type.type).type);
+            } else if (data.classes->count(field.type.type)) {
+                auto t = llvm::PointerType::getUnqual(data.classes->at(field.type.type).type);
                 fieldLLVMTypes.push_back(t);
                 llvmFields.push_back({field.name, field.type.type, t });
             } else if (field.type.type == name) {
@@ -62,7 +77,7 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
             }
         }
         classType->setBody(fieldLLVMTypes);
-        classes->insert({ name, {classType, llvmFields } });
+        data.classes->insert({ name, {classType, llvmFields } });
 
         // Generate stubs for methods so that they can recursively call themselves, call those defined after them, etc
         for (const auto& method : methods) {
@@ -77,9 +92,9 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
                 llvm::Type* llvmType;
                 int ivt = getPrimitiveVariableTypeFromString(genericType);
                 if (ivt != -1) {
-                    llvmType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, context);
-                } else if (classes->count(genericType)) {
-                    llvmType = llvm::PointerType::getUnqual(classes->at(genericType).type);
+                    llvmType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) ivt, data.context);
+                } else if (data.classes->count(genericType)) {
+                    llvmType = llvm::PointerType::getUnqual(data.classes->at(genericType).type);
                 } else {
                     cerr << "Error: unknown type " << genericType << endl;
                     exit(EXIT_FAILURE);
@@ -94,15 +109,15 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
             llvm::Type* returnType;
             int rtt = getPrimitiveVariableTypeFromString(genericReturnType);
             if (rtt != -1) {
-                returnType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) rtt, context);
-            } else if (classes->count(genericReturnType)) {
-                returnType = llvm::PointerType::get(classes->at(genericReturnType).type, 0);
+                returnType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) rtt, data.context);
+            } else if (data.classes->count(genericReturnType)) {
+                returnType = llvm::PointerType::get(data.classes->at(genericReturnType).type, 0);
             } else {
                 cerr << "Error: invalid return type " << genericReturnType << endl;
                 exit(EXIT_FAILURE);
             }
             llvm::FunctionType* ft = llvm::FunctionType::get(returnType, argTypes, false);
-            auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method.second->name, *module);
+            auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method.second->name, *data.module);
             unsigned index = 0;
             for (auto &arg : func->args()) {
                 arg.setName(method.second->args[index++]->name);
@@ -110,11 +125,11 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
         }
         map<string, llvm::Function*> llvmMethods;
         for (const auto& method : methods) {
-            auto m = (llvm::Function*) method.second->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+            auto m = (llvm::Function*) method.second->codegen(data);
             llvmMethods.insert({ name, m });
         }
-        classes->erase(name);
-        classes->insert({ name, {classType, llvmFields, llvmMethods } });
+        data.classes->erase(name);
+        data.classes->insert({ name, {classType, llvmFields, llvmMethods } });
         return nullptr;
     }
 
@@ -133,19 +148,22 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
         }
         genericClassName += ">";
         cout << "Generic name: " << genericClassName << endl;
-        auto classType = llvm::StructType::create(*context, genericClassName);
-        classes->insert({ genericClassName, {classType} });
-        cout << "classes->count(\"ListNode<i32>\"): " << classes->count("ListNode<i32>") << endl;
+        auto classType = llvm::StructType::create(*data.context, genericClassName);
+        data.classes->insert({ genericClassName, {classType} });
+        for (int i = 0; i < genericTypes.size(); i++) {
+            data.generics->insert({ genericTypes.at(i).type, g.at(i) });
+        }
+        cout << "classes->count(\"ListNode<i32>\"): " << data.classes->count("ListNode<i32>") << endl;
         for (int i = 0; i < g.size(); i++)  {
             auto genericValue = convertVariableTypeToString(g.at(i));
             string genericType = convertVariableTypeToString(genericTypes.at(i));
-            if (classes->count(genericValue)) {
-                auto llvmType = llvm::PointerType::getUnqual(classes->at(genericValue).type);
+            if (data.classes->count(genericValue)) {
+                auto llvmType = llvm::PointerType::getUnqual(data.classes->at(genericValue).type);
                 cout << "Adding temp class " << genericType << endl;
-                classes->insert({ genericType, { llvmType } });
+                data.classes->insert({ genericType, { llvmType } });
             } else if (genericValue == name) {
                 auto llvmType = llvm::PointerType::getUnqual(classType);
-                classes->insert({ genericType, { llvmType } });
+                data.classes->insert({ genericType, { llvmType } });
             } else if (getPrimitiveVariableTypeFromString(genericValue) == -1) {
                 cerr << "Error: expected type for generic type but instead found " << genericValue << endl;
                 exit(EXIT_FAILURE);
@@ -155,7 +173,7 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
         vector<ClassFieldType> llvmFields;
         for (const auto& field : fields) {
             cout << "Processing field " << field.name << endl;
-            auto fieldType = getLLVMGenericTypeByVariableType(field.type, classes, genericTypes, g, context, classType,
+            auto fieldType = getLLVMGenericTypeByVariableType(field.type, data.classes, genericTypes, g, data.context, classType,
                                                               name);
             if (fieldType == nullptr) {
                 cerr << "Error: expected type for field type but instead found " << convertVariableTypeToString(field.type) << endl;
@@ -165,8 +183,8 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
             llvmFields.push_back({ field.name, name, fieldType });
         }
         classType->setBody(fieldLLVMTypes);
-        classes->erase(genericClassName);
-        classes->insert({ genericClassName, {classType, llvmFields } });
+        data.classes->erase(genericClassName);
+        data.classes->insert({ genericClassName, {classType, llvmFields } });
 
         // Generate stubs for methods so that they can recursively call themselves, call those defined after them, etc
         for (const auto& method : methods) {
@@ -178,48 +196,22 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
             cout << "Method args size 0: " << method.second->args.size() << endl;
             vector<llvm::Type*> argTypes;
             for (const auto& arg : method.second->args) {
-                auto argType = getLLVMGenericTypeByVariableType(arg->type, classes, genericTypes, g, context, classType, name);
+                auto argType = getLLVMGenericTypeByVariableType(arg->type, data.classes, genericTypes, g, data.context, classType, name);
                 if (!argType) {
                     cerr << "Error: unknown argument type " << convertVariableTypeToString(arg->type) << endl;
                     exit(EXIT_FAILURE);
                 }
                 argTypes.push_back(argType);
             }
-            cout << "method.second->returnType: " << method.second->returnType.type << endl;
-            auto returnType = getLLVMGenericTypeByVariableType(method.second->returnType, classes, genericTypes, g,
-                                                               context, classType, name);
+            cout << "method.second->returnType: " << convertVariableTypeToString(method.second->returnType) << endl;
+            auto returnType = getLLVMGenericTypeByVariableType(method.second->returnType, data.classes, genericTypes, g,
+                                                               data.context, classType, name);
             if (!returnType) {
                 cerr << "Error: invalid method return type " << method.second->returnType.type << endl;
                 exit(EXIT_FAILURE);
             }
-//            int rtt = getPrimitiveVariableTypeFromString(method.second->returnType);
-//            if (rtt != -1) {
-//                returnType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) rtt, context);
-//            } else if (classes->count(method.second->returnType)) {
-//                returnType = llvm::PointerType::get(classes->at(method.second->returnType).type, 0);
-//            } else {
-//                // Check generic names
-//                for (int i = 0; i < genericTypes.size(); i++) {
-//                    if (genericTypes.at(i) == method.second->returnType) {
-//                        string genericValue = g.at(i);
-//                        int vt = getPrimitiveVariableTypeFromString(genericValue);
-//                        if (vt != -1) {
-//                            returnType = getLLVMTypeByPrimitiveVariableType((PrimitiveVariableType) vt, context);
-//                        } else if (classes->count(genericValue)) {
-//                            returnType = llvm::PointerType::getUnqual(classes->at(method.second->returnType).type);
-//                        } else if (genericValue == name) {
-//                            returnType = llvm::PointerType::getUnqual(classType);
-//                        }
-//                        break;
-//                    }
-//                }
-//                if (!returnType) {
-//                    cerr << "Error: invalid method return type " << method.second->returnType << endl;
-//                    exit(EXIT_FAILURE);
-//                }
-//            }
             llvm::FunctionType* ft = llvm::FunctionType::get(returnType, argTypes, false);
-            auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method.second->name, *module);
+            auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method.second->name, *data.module);
             unsigned index = 0;
             for (auto &arg : func->args()) {
                 arg.setName(method.second->args[index++]->name);
@@ -228,12 +220,13 @@ llvm::Value* ASTClassDefinition::codegen(llvm::IRBuilder<> *builder,
         map<string, llvm::Function*> llvmMethods;
         for (const auto& method : methods) {
             cout << "Method args size: " << method.second->args.size() << endl;
-            auto m = (llvm::Function*) method.second->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes);
+            auto m = (llvm::Function*) method.second->codegen(data);
             llvmMethods.insert({ name, m });
             method.second->args.pop_back();
         }
-        classes->erase(genericClassName);
-        classes->insert({ genericClassName, {classType, llvmFields, llvmMethods } });
+        data.classes->erase(genericClassName);
+        data.classes->insert({ genericClassName, {classType, llvmFields, llvmMethods } });
+        data.generics->clear();
     }
     return nullptr;
 }

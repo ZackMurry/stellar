@@ -26,9 +26,10 @@ void generateOutput(const vector<ASTNode*>& nodes) {
     map<string, llvm::Value*> namedValues;
     map<string, string> objectsTypes;
     map<string, ClassData> classes;
+    auto generics = new map<string, VariableType>();
     for (auto const &node : nodes) {
         cout << node->toString() << endl;
-        node->codegen(builder, context, entryBlock, &namedValues, module, &objectsTypes, &classes);
+        node->codegen({ builder, context, entryBlock, &namedValues, module, &objectsTypes, &classes, generics });
     }
 
     cout << "Adding return to main" << endl;

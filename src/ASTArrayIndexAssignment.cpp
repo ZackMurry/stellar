@@ -4,13 +4,7 @@
 
 #include "include/ASTArrayIndexAssignment.h"
 
-llvm::Value* ASTArrayIndexAssignment::codegen(llvm::IRBuilder<>* builder,
-                                              llvm::LLVMContext* context,
-                                              llvm::BasicBlock* entryBlock,
-                                              map<string, llvm::Value*>* namedValues,
-                                              llvm::Module* module,
-                                              map<string, string>* objectTypes,
-                                              map<string, ClassData>* classes) {
-    llvm::Value* ref = builder->CreateInBoundsGEP(namedValues->at(name), llvm::ArrayRef<llvm::Value*>(index->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes)), "acctmp");
-    return builder->CreateStore(value->codegen(builder, context, entryBlock, namedValues, module, objectTypes, classes), ref);
+llvm::Value* ASTArrayIndexAssignment::codegen(CodegenData data) {
+    llvm::Value* ref = data.builder->CreateInBoundsGEP(data.namedValues->at(name), llvm::ArrayRef<llvm::Value*>(index->codegen(data)), "acctmp");
+    return data.builder->CreateStore(value->codegen(data), ref);
 }

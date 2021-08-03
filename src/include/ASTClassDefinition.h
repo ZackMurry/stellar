@@ -11,6 +11,8 @@
 
 using namespace std;
 
+VariableType mapVariableTypeToGenericTypes(const VariableType& v, const vector<VariableType>& genericTypes, const vector<VariableType>& genericUsage);
+
 class ASTClassDefinition : public ASTNode {
 public:
     string name;
@@ -26,13 +28,7 @@ public:
         }
         return s + "]]";
     }
-    llvm::Value* codegen(llvm::IRBuilder<>* builder,
-                         llvm::LLVMContext* context,
-                         llvm::BasicBlock* entryBlock,
-                         map<string, llvm::Value*>* namedValues,
-                         llvm::Module* module,
-                         map<string, string>* objectTypes,
-                         map<string, ClassData>* classes) override;
+    llvm::Value* codegen(CodegenData data) override;
     ASTNodeType getType() override {
         return AST_CLASS_DEFINITION;
     }

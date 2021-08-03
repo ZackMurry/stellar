@@ -29,13 +29,7 @@ public:
         return "[VAR_MUT: " + name + " change:  " + change->toString() + " type: " + to_string(mutationType) + " pos: " +
                 to_string(mutationPosition) + "]";
     }
-    llvm::Value *codegen(llvm::IRBuilder<>* builder,
-                         llvm::LLVMContext* context,
-                         llvm::BasicBlock* entryBlock,
-                         std::map<std::string, llvm::Value*>* namedValues,
-                         llvm::Module* module,
-                         map<string, string>* objectTypes,
-                         map<string, ClassData>* classes) override;
+    llvm::Value *codegen(CodegenData data) override;
     ASTNodeType getType() override {
         return AST_VARIABLE_MUTATION;
     }
