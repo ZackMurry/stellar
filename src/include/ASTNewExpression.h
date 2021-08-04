@@ -8,12 +8,11 @@
 
 class ASTNewExpression : public ASTNode {
 public:
-    string className;
+    VariableType classType;
     vector<ASTNode*> args;
-    vector<VariableType> genericTypes;
-    ASTNewExpression(string className, vector<ASTNode*> args, vector<VariableType> genericTypes) : className(move(className)), args(move(args)), genericTypes(move(genericTypes)) {}
+    ASTNewExpression(VariableType classType, vector<ASTNode*> args) : classType(move(classType)), args(move(args)) {}
     string toString() override {
-        return "[CLASS_INST: type: " + className + " num args: " + to_string(args.size()) + "]";
+        return "[CLASS_INST: type: " + convertVariableTypeToString(classType) + " num args: " + to_string(args.size()) + "]";
     }
     llvm::Value* codegen(CodegenData data) override;
     ASTNodeType getType() override {

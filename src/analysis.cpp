@@ -18,6 +18,21 @@ map<string, ASTClassDefinition*> classDefs;
 // Fmt: origin class to outgoing links, which are stored in a vector representing the indices of the generics needed
 map<string, map<string, vector<int>>> classLinks;
 
+bool areVariableTypesEqual(const VariableType& vt1, const VariableType& vt2) {
+    if (vt1.type != vt2.type) {
+        return false;
+    }
+    if (vt1.genericTypes.size() != vt2.genericTypes.size()) {
+        return false;
+    }
+    for (int i = 0; i < vt1.genericTypes.size(); i++) {
+        if (!areVariableTypesEqual(vt1.genericTypes.at(i), vt2.genericTypes.at(i))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void addGenericUsageIfNotPresent(const string& className, vector<VariableType> genericTypes) {
     cout << "Adding generic usage INP to " << className << endl;
     auto classDef = classDefs.at(className);
@@ -28,10 +43,15 @@ void addGenericUsageIfNotPresent(const string& className, vector<VariableType> g
     if (genericTypes.empty()) {
         return;
     }
+    for (const auto& gt : genericTypes) {
+        if (!gt.genericTypes.empty()) {
+            addGenericUsageIfNotPresent(gt.type, gt.genericTypes);
+        }
+    }
     for (const auto& usage : classDef->genericUsages) {
         bool isMatch = true;
         for (int i = 0; i < usage.size(); i++) {
-            if (usage.at(i).type != genericTypes.at(i).type) {
+            if (!areVariableTypesEqual(usage.at(i), genericTypes.at(i))) {
                 isMatch = false;
                 break;
             }
@@ -95,8 +115,8 @@ void analyzeNode(ASTNode* node, string* parentClass) {
         addGenericUsageIfNotPresent(instNode->className, instNode->genericTypes);
     } else if (type == AST_NEW_EXPRESSION) {
         auto newNode = dynamic_cast<ASTNewExpression*>(node);
-        cout << "New expression: " << newNode->genericTypes.size() << endl;
-        addGenericUsageIfNotPresent(newNode->className, newNode->genericTypes);
+        cout << "New expression: " << newNode->classType.genericTypes.size() << endl;
+        addGenericUsageIfNotPresent(newNode->classType.type, newNode->classType.genericTypes);
     } else if (type == AST_VARIABLE_DEFINITION) {
         auto defNode = dynamic_cast<ASTVariableDefinition*>(node);
         if (classDefs.count(convertVariableTypeToString(defNode->type))) {
@@ -138,15 +158,22 @@ void analyzeNode(ASTNode* node, string* parentClass) {
 void analyze(const vector<ASTNode*>& nodes) {
     classDefs.clear();
     classLinks.clear();
-    for (const auto& node : nodes) {
+    for (const auto &node : nodes) {
         analyzeNode(node, nullptr);
     }
-    for (const auto& cl : classLinks) {
+    for (const auto &cl : classLinks) {
         cout << cl.first << " has " << cl.second.size() << " class links" << endl;
-        for (const auto& c : cl.second) {
+        for (const auto &c : cl.second) {
             cout << cl.first << " is linked to " << c.first << endl;
         }
     }
-    cout << "ListNode has " << classDefs.at("ListNode")->genericUsages.size() << " usages" << endl;
-    cout << "ListNode has the usage " << convertVariableTypeToString(classDefs.at("ListNode")->genericUsages.at(0).at(0)) << endl;
+    for (const auto &cd : classDefs) {
+        cout << cd.first << " has " << cd.second->genericUsages.size() << " generic usages" << endl;
+        for (const auto& gu : cd.second->genericUsages) {
+            cout << "Generic usage: " << endl;
+            for (const auto& g : gu) {
+                cout << convertVariableTypeToString(g) << endl;
+            }
+        }
+    }
 }

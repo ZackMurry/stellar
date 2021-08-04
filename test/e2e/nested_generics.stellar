@@ -1,0 +1,55 @@
+extern v printf(s fmt, ...)
+
+class Box<T> {
+    T width
+    T height
+
+    new(T width, T height) {
+        this.width = width
+        this.height = height
+    }
+
+    T getArea() {
+        ret this.width * this.height
+    }
+}
+
+class Container<T> {
+    T val
+
+    Container<T> get() {
+        ret this
+    }
+
+    T getVal() {
+        ret this.val
+    }
+
+    v setVal(T val) {
+        this.val = val
+    }
+}
+
+Container<Container<i32>> intc2 = new Container<Container<i32>>()
+Container<i32> intc = new Container<i32>()
+intc.setVal(1337)
+intc2.setVal(intc.get()) // .get() to test the method invocation
+printf("%d\n", intc2.getVal().getVal())
+
+new Container<Container<Container<Container<Container<Container<d>>>>>> dc6()
+new Container<Container<Container<Container<Container<d>>>>> dc5()
+new Container<Container<Container<Container<d>>>> dc4()
+new Container<Container<Container<d>>> dc3()
+new Container<Container<d>> dc2()
+new Container<d> dc()
+dc.setVal(2.5d)
+dc2.setVal(dc)
+dc3.setVal(dc2)
+dc4.setVal(dc3)
+dc5.setVal(dc4)
+dc6.setVal(dc5)
+printf("%.1f\n", dc6.getVal().getVal().getVal().getVal().getVal().getVal())
+
+new Container<Box<i32>> intBoxContainer
+intBoxContainer.setVal(new Box<i32>(15, 20))
+printf("%d\n", intBoxContainer.getVal().getArea())

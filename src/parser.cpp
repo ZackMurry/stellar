@@ -40,14 +40,13 @@
 
 using namespace std;
 
-// todo: constructors
 // todo: string concatenation (probably using sprintf)
 // todo: argv and argc
 // todo: exit codes
 // todo: explicit casts
 // todo: functions with the same name but different signatures
 // todo: ternary expressions
-// todo: nested generics
+// todo: remove requirement for generic types for classes to be defined before the class (currently, Box has to be defined before Container to use Container<Box>)
 
 unsigned long parsingIndex = 0;
 
@@ -207,19 +206,13 @@ ASTNode* parseNewExpression(vector<Token> tokens) {
     string className = tokens[parsingIndex].value;
 
     if (++parsingIndex >= tokens.size()) {
-        return new ASTNewExpression(className, vector<ASTNode*>(), vector<VariableType>());
+        return new ASTNewExpression({ className, vector<VariableType>() }, vector<ASTNode*>());
     }
 
     auto genericTypes = parseGenericTypes(tokens);
     if (parsingIndex >= tokens.size()) {
-        return new ASTNewExpression(className, vector<ASTNode*>(), genericTypes);
+        return new ASTNewExpression({ className, genericTypes }, vector<ASTNode*>());
     }
-
-    // Consume class name
-    if (++parsingIndex >= tokens.size()) {
-        return new ASTNewExpression(className, vector<ASTNode*>(), genericTypes);
-    }
-
 
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
         // Consume '('
@@ -245,9 +238,9 @@ ASTNode* parseNewExpression(vector<Token> tokens) {
         }
         // Consume ')'
         parsingIndex++;
-        return new ASTNewExpression(className, args, genericTypes);
+        return new ASTNewExpression({ className, genericTypes }, args);
     }
-    return new ASTNewExpression(className, vector<ASTNode*>(), genericTypes);
+    return new ASTNewExpression({ className, genericTypes }, vector<ASTNode*>());
 }
 
 // Parses mutations in the form ++var or --var
@@ -783,35 +776,43 @@ ASTNode* parseVariableMutation(vector<Token> tokens, const string& identifier) {
     return new ASTVariableMutation(identifier, change, mutationType, MUTATE_AFTER);
 }
 
+bool isGenericExpression(vector<Token> tokens) {
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "<") {
+        while (++parsingIndex < tokens.size()) {
+            if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+                return false;
+            }
+            string identifier = tokens[parsingIndex].value;
+            // Consume identifier
+            if (++parsingIndex >= tokens.size()) {
+                return false;
+            }
+            if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "<" && !isGenericExpression(tokens)) {
+                return false;
+            }
+            if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ">") {
+                if (++parsingIndex >= tokens.size()) {
+                    return false;
+                }
+                break;
+            } else if (tokens[parsingIndex].type != TOKEN_PUNCTUATION && tokens[parsingIndex].value != ",") {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 ASTNode* parseIdentifierExpression(vector<Token> tokens) {
     string identifier = tokens[parsingIndex].value; // Get and consume identifier
     if (++parsingIndex >= tokens.size()) {
         return new ASTVariableExpression(identifier);
     }
     bool isGeneric = false;
-    // Pattern match generics to <IDENTIFIER, IDENTIFIER, ...>
     if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "<") {
-        unsigned long i = parsingIndex;
-        isGeneric = true;
-        while (++i < tokens.size()) {
-            if (tokens[i].type != TOKEN_IDENTIFIER) {
-                isGeneric = false;
-                break;
-            }
-            if (++i >= tokens.size()) {
-                isGeneric = false;
-                break;
-            }
-            if (tokens[i].type == TOKEN_PUNCTUATION && tokens[i].value == ">") {
-                break;
-            } else if (tokens[i].type != TOKEN_PUNCTUATION || tokens[i].value != ",") {
-                isGeneric = false;
-                break;
-            }
-        }
-        if (i >= tokens.size()) {
-            isGeneric = false;
-        }
+        unsigned long pi = parsingIndex;
+        isGeneric = isGenericExpression(tokens);
+        parsingIndex = pi;
     }
     cout << "isGeneric: " << isGeneric << endl;
     if (tokens[parsingIndex].type == TOKEN_IDENTIFIER || (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "[") || isGeneric) {
@@ -869,7 +870,8 @@ ASTNode* parseIdentifierExpression(vector<Token> tokens) {
 }
 
 ASTNode* parseReturnExpression(vector<Token> tokens) {
-    // Consume 'r'
+    cout << "ret" << endl;
+    // Consume 'ret'
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
@@ -1249,6 +1251,7 @@ vector<ASTNode*> parse(vector<Token> tokens) {
     parsingIndex = 0;
     vector<ASTNode*> nodes;
     while (parsingIndex < tokens.size()) {
+        cout << "Next node" << endl;
         if (tokens[parsingIndex].type == TOKEN_IDENTIFIER) {
             nodes.push_back(parseIdentifierExpression(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_EOF || tokens[parsingIndex].type == TOKEN_NEWLINE) {

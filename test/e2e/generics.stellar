@@ -1,0 +1,21 @@
+extern v printf(s fmt, ...)
+
+class Container<T> {
+    T val
+
+    T getVal() {
+        ret this.val
+    }
+
+    v setVal(T val) {
+        this.val = val
+    }
+}
+
+new Container<i32> intContainer
+intContainer.setVal(12)
+printf("%d\n", intContainer.getVal())
+
+Container<d> doubleContainer = new Container<d>()
+doubleContainer.setVal(13.37d)
+printf("%.2f\n", doubleContainer.getVal())

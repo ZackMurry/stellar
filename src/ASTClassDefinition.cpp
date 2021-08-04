@@ -3,27 +3,24 @@
 
 #include "include/ASTClassDefinition.h"
 
-VariableType mapVariableTypeToGenericTypes(const VariableType& v, const vector<VariableType>& genericTypes, const vector<VariableType>& genericUsage) {
-    VariableType result;
-    bool isTypeNameGeneric = false;
+VariableType mapVariableTypeToGenericTypes(VariableType v, const vector<VariableType>& genericTypes, const vector<VariableType>& genericUsage) {
     for (int i = 0; i < genericTypes.size(); i++) {
         if (v.type == genericTypes.at(i).type) {
-            result.type = genericUsage.at(i).type;
-            isTypeNameGeneric = true;
+            cout << "Mapped generic type " << v.type << " to " << convertVariableTypeToString(genericUsage.at(i)) << endl;
+            v = genericUsage.at(i);
             break;
         }
     }
-    if (!isTypeNameGeneric) {
-        result.type = v.type;
+    for (auto & genericType : v.genericTypes) {
+        genericType = mapVariableTypeToGenericTypes(genericType, genericTypes, genericUsage);
     }
-    for (const auto& type : v.genericTypes) {
-        result.genericTypes.push_back(mapVariableTypeToGenericTypes(type, genericTypes, genericUsage));
-    }
-    return result;
+    return v;
 }
 
 llvm::Type* getLLVMGenericTypeByVariableType(const VariableType& v, map<string, ClassData>* classes, const vector<VariableType>& genericTypes, const vector<VariableType>& genericUsage, llvm::LLVMContext* context, llvm::Type* classType, const string& className) {
+    cout << convertVariableTypeToString(v) << "; Num generics: " << v.genericTypes.size() << endl;
     VariableType cv = mapVariableTypeToGenericTypes(v, genericTypes, genericUsage);
+    cout << "Num generics: " << cv.genericTypes.size() << endl;
     string genericString = convertVariableTypeToString(cv);
     cout << "genericString: " << genericString << ": " << classes->count(genericString) << ": " << classes->count("ListNode<i32>") << endl;
     int ivt = getPrimitiveVariableTypeFromString(genericString);
@@ -153,7 +150,6 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         for (int i = 0; i < genericTypes.size(); i++) {
             data.generics->insert({ genericTypes.at(i).type, g.at(i) });
         }
-        cout << "classes->count(\"ListNode<i32>\"): " << data.classes->count("ListNode<i32>") << endl;
         for (int i = 0; i < g.size(); i++)  {
             auto genericValue = convertVariableTypeToString(g.at(i));
             string genericType = convertVariableTypeToString(genericTypes.at(i));
