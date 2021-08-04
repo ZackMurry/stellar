@@ -708,10 +708,13 @@ ASTNode* parseClassAccess(vector<Token> tokens, ASTNode* object) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+    if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_CLASS) {
         printFatalErrorMessage("expected field/method name after '.' in object access", tokens);
     }
     string fieldName = tokens[parsingIndex].value;
+    if (tokens[parsingIndex].type == TOKEN_CLASS) {
+        fieldName = "class";
+    }
     if (++parsingIndex >= tokens.size()) {
         return new ASTClassFieldAccess(object, fieldName);
     }

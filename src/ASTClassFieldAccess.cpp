@@ -3,6 +3,7 @@
 //
 
 #include "include/ASTClassFieldAccess.h"
+#include "include/ASTStringExpression.h"
 
 llvm::Value* ASTClassFieldAccess::codegen(CodegenData data) {
     cout << "ASTClassFieldAccess::codegen" << endl;
@@ -12,6 +13,9 @@ llvm::Value* ASTClassFieldAccess::codegen(CodegenData data) {
         exit(EXIT_FAILURE);
     }
     string className = parent->getType()->getPointerElementType()->getStructName().str();
+    if (fieldName == "class") {
+        return ASTStringExpression(className).codegen(data);
+    }
     int fieldNumber = -1;
     int i = 0;
     for (const auto& f : data.classes->at(className).fields) {

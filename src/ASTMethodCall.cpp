@@ -9,7 +9,7 @@ llvm::Value* ASTMethodCall::codegen(CodegenData data) {
     cout << "ASTMethodCall::codegen" << endl;
     auto parent = object->codegen(data);
     if (!parent->getType()->isPointerTy() || !parent->getType()->getPointerElementType()->isStructTy()) {
-        cerr << "Error: unexpected field access of non-object variable" << endl;
+        cerr << "Error: unexpected method call of non-object variable" << endl;
         exit(EXIT_FAILURE);
     }
     string className = parent->getType()->getPointerElementType()->getStructName().str();
