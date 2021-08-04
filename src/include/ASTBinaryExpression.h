@@ -21,7 +21,7 @@ enum ExpressionOperator {
     OPERATOR_NE,
     OPERATOR_MODULO,
     OPERATOR_AND,
-    OPERATOR_OR,
+    OPERATOR_OR
 };
 
 class ASTBinaryExpression : public ASTNode {

@@ -13,8 +13,18 @@ llvm::Value* ASTMethodCall::codegen(CodegenData data) {
         exit(EXIT_FAILURE);
     }
     string className = parent->getType()->getPointerElementType()->getStructName().str();
+    if (!data.classes->count(className)) {
+        cerr << "Error: unknown class " << className << " of object" << endl;
+        exit(EXIT_FAILURE);
+    }
     string name = className + "__" + methodName;
     llvm::Function* method = data.module->getFunction(name);
+    string parentClass = data.classes->at(className).parent;
+    while (!method && !parentClass.empty()) {
+        name = parentClass + "__" + methodName;
+        method = data.module->getFunction(name);
+        parentClass = data.classes->at(parentClass).parent;
+    }
     if (!method) {
         cerr << "Error: unknown reference to " << name << endl;
         exit(EXIT_FAILURE);

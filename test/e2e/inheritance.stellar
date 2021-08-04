@@ -1,0 +1,74 @@
+extern v printf(s fmt, ...)
+
+class Base {
+    i32 a
+
+    v setA(i32 a) {
+        this.a = a
+    }
+
+    i32 getA() {
+        ret this.a
+    }
+}
+
+class Derived extends Base {
+    i32 b
+
+    v setB(i32 b) {
+        this.b = b
+    }
+
+    i32 getB() {
+        ret this.b
+    }
+
+    i32 getAPlusB() {
+        ret this.a + this.b
+    }
+}
+
+class SuperDerived extends Derived {
+    d c
+
+    v setC(d c) {
+        this.c = c
+    }
+
+    d getC() {
+        ret this.c
+    }
+
+    i32 getB() {
+        ret 1234
+    }
+}
+
+new Derived derived()
+derived.setA(12)
+derived.setB(1337)
+printf("%d\n", derived.getA())
+printf("%d\n", derived.a)
+printf("%d\n", derived.getB())
+printf("%d\n", derived.b)
+printf("%d\n", derived.getAPlusB())
+printf("%s\n", derived.class)
+
+new SuperDerived sd()
+sd.setA(12)
+sd.b = 1337
+sd.setC(20.04d)
+printf("%d\n", sd.getA())
+printf("%d\n", sd.a)
+printf("%d\n", sd.getB())
+printf("%d\n", sd.b)
+printf("%d\n", sd.getAPlusB())
+printf("%.2f\n", sd.getC())
+printf("%.2f\n", sd.c)
+printf("%s\n", sd.class)
+
+v printBaseA(Base base) {
+    printf("%d\n", base.a)
+}
+
+printBaseA(sd)

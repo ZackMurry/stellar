@@ -40,9 +40,6 @@ void addGenericUsageIfNotPresent(const string& className, vector<VariableType> g
         cerr << "Error: wrong number of generic types for class " << classDef->name << " (expected " << classDef->genericTypes.size() << " but got " << genericTypes.size() << ")" << endl;
         exit(EXIT_FAILURE);
     }
-    if (genericTypes.empty()) {
-        return;
-    }
     for (const auto& gt : genericTypes) {
         if (!gt.genericTypes.empty()) {
             addGenericUsageIfNotPresent(gt.type, gt.genericTypes);
@@ -109,6 +106,9 @@ void analyzeNode(ASTNode* node, string* parentClass) {
                     }
                 }
             }
+        }
+        if (!classNode->parentClass.empty()) {
+            addGenericUsageIfNotPresent(classNode->parentClass, vector<VariableType>());
         }
     } else if (type == AST_CLASS_INSTANTIATION) {
         auto instNode = dynamic_cast<ASTClassInstantiation*>(node);

@@ -13,6 +13,10 @@ llvm::Value* ASTClassFieldAccess::codegen(CodegenData data) {
         exit(EXIT_FAILURE);
     }
     string className = parent->getType()->getPointerElementType()->getStructName().str();
+    if (!data.classes->count(className)) {
+        cerr << "Error: unknown class " << className << " of object" << endl;
+        exit(EXIT_FAILURE);
+    }
     if (fieldName == "class") {
         return ASTStringExpression(className).codegen(data);
     }

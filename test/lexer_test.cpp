@@ -379,3 +379,10 @@ TEST(LexerTest, StringTest) {
     ASSERT_EQ(tokens[0].type, TOKEN_STRING);
     ASSERT_EQ(tokens[0].value, "\tHello, \"wo\\rld!\n");
 }
+
+TEST(LexerTest, ExtendsTest) {
+    auto tokens = tokenize("extends");
+    ASSERT_EQ(tokens.size(), 1);
+    ASSERT_EQ(tokens[0].type, TOKEN_EXTENDS);
+    ASSERT_EQ(tokens[0].value, "");
+}

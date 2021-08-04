@@ -397,6 +397,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "extends") {
+        token.type = TOKEN_EXTENDS;
+        token.value = "";
+        return token;
+    }
     token.type = TOKEN_IDENTIFIER;
     token.value = word;
     return token;

@@ -80,6 +80,7 @@ struct ClassData {
     llvm::Type* type;
     vector<ClassFieldType> fields;
     map<string, llvm::Function*> methods;
+    string parent;
 };
 
 llvm::Type* getLLVMTypeByPrimitiveVariableType(PrimitiveVariableType type, llvm::LLVMContext* context);

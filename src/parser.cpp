@@ -47,6 +47,10 @@ using namespace std;
 // todo: functions with the same name but different signatures
 // todo: ternary expressions
 // todo: remove requirement for generic types for classes to be defined before the class (currently, Box has to be defined before Container to use Container<Box>)
+// todo: inheritance with generics
+// todo: @Annotations
+// todo: interfaces
+// todo: abstract classes
 
 unsigned long parsingIndex = 0;
 
@@ -1044,6 +1048,24 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     }
     // Generics
     auto genericTypes = parseGenericTypes(tokens);
+
+    string parentClass;
+    if (tokens[parsingIndex].type == TOKEN_EXTENDS) {
+        // Consume "extends"
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            printFatalErrorMessage("expected class name after \"extends\"", tokens);
+        }
+        parentClass = tokens[parsingIndex].value;
+
+        // Consume parent class name
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+    }
+
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {
         printFatalErrorMessage("expected '{' after class name", tokens);
     }
@@ -1118,7 +1140,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             printOutOfTokensError();
         }
         cout << "class" << endl;
-        return new ASTClassDefinition(name, fields, methods, genericTypes);
+        return new ASTClassDefinition(name, fields, methods, genericTypes, parentClass);
     } else {
         printFatalErrorMessage("expected empty class", tokens);
         return nullptr;
