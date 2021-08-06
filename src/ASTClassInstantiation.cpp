@@ -4,6 +4,8 @@
 
 #include "include/ASTClassInstantiation.h"
 #include "include/ASTClassDefinition.h"
+#include "include/ASTFunctionInvocation.h"
+#include "include/ASTStringExpression.h"
 
 llvm::Value* ASTClassInstantiation::codegen(CodegenData data) {
     cout << "ASTClassInstantiation::codegen" << endl;
@@ -26,13 +28,13 @@ llvm::Value* ASTClassInstantiation::codegen(CodegenData data) {
         cerr << "Error: expected valid class type for class instantiation but instead found " << genericClassName << endl;
         exit(EXIT_FAILURE);
     }
-    auto c = data.classes->at(genericClassName).type;
-    auto alloca = data.builder->CreateAlloca(llvm::PointerType::getUnqual(c), nullptr, identifier);
+    auto classData = data.classes->at(genericClassName);
+    auto alloca = data.builder->CreateAlloca(llvm::PointerType::getUnqual(classData.type), nullptr, identifier);
     auto inst = llvm::CallInst::CreateMalloc(
             data.builder->GetInsertBlock(),
             llvm::Type::getInt64PtrTy(*data.context),
-            c,
-            llvm::ConstantExpr::getSizeOf(c),
+            classData.type,
+            llvm::ConstantExpr::getSizeOf(classData.type),
             nullptr,
             nullptr,
             identifier);
@@ -57,5 +59,8 @@ llvm::Value* ASTClassInstantiation::codegen(CodegenData data) {
         argsV.push_back(data.builder->CreateLoad(alloca)); // Add object instance parameter
         data.builder->CreateCall(constructor, argsV, "newtmp");
     }
+    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)) };
+    auto gep = data.builder->CreateGEP(data.builder->CreateLoad(alloca), elementIndex);
+    data.builder->CreateStore(classData.vtableGlobal, gep);
     return alloca;
 }

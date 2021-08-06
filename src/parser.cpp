@@ -1081,7 +1081,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         printOutOfTokensError();
     }
     vector<ClassFieldDefinition> fields;
-    map<string, ASTFunctionDefinition*> methods;
+    vector<ASTFunctionDefinition*> methods;
     while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "}")) {
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_NEW) {
             printFatalErrorMessage("expected identifier in class body", tokens);
@@ -1118,8 +1118,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         }
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
-            methods.insert(
-                    {fieldName, (ASTFunctionDefinition *) parseFunctionDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName)});
+            methods.push_back((ASTFunctionDefinition *) parseFunctionDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName));
         } else if (isConstructor) {
             printFatalErrorMessage("A field cannot have the type 'new'", tokens);
         } else {

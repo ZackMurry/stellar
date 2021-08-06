@@ -38,5 +38,8 @@ llvm::Value* ASTNewExpression::codegen(CodegenData data) {
         argsV.push_back(load); // Add object instance parameter
         data.builder->CreateCall(constructor, argsV, "newtmp");
     }
+    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)) };
+    auto gep = data.builder->CreateGEP(data.builder->CreateLoad(alloca), elementIndex);
+    data.builder->CreateStore(data.classes->at(genericClassName).vtableGlobal, gep);
     return load;
 }

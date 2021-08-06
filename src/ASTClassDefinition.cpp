@@ -1,7 +1,9 @@
 // // Created by zack on 7/15/21.
 //
 
+#include <include/ASTStringExpression.h>
 #include "include/ASTClassDefinition.h"
+#include <set>
 
 VariableType mapVariableTypeToGenericTypes(VariableType v, const vector<VariableType>& genericTypes, const vector<VariableType>& genericUsage) {
     for (int i = 0; i < genericTypes.size(); i++) {
@@ -85,6 +87,75 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         }
         vector<llvm::Type*> fieldLLVMTypes;
         vector<ClassFieldType> llvmFields;
+
+
+        // Create vtable
+        auto vtable = llvm::StructType::create(*data.context, genericClassName + "_vtable_type");
+        vector<llvm::Type*> vtableBody;
+        vector<string> methodOrder;
+
+        // Generate stubs for methods so that they can recursively call themselves, call those defined after them, etc
+        string pc = parentClass;
+        vector<llvm::Constant*> vtableArr;
+        map<string, llvm::Function*> llvmMethods;
+        set<string> definedMethods;
+        for (const auto& method : methods) {
+            definedMethods.insert(method->name);
+        }
+        while (!pc.empty()) {
+            if (!data.classes->count(parentClass)) {
+                cerr << "Error: unknown parent class " << parentClass << endl;
+            }
+            auto cd = data.classes->at(parentClass);
+            for (const auto& methodName : cd.methodOrder) {
+                if (definedMethods.count(methodName)) {
+                    cout << "Skipping inherited method " << methodName << endl;
+                    continue;
+                }
+                cout << "Inherited method " << methodName << endl;
+                methodOrder.push_back(methodName);
+                auto method = cd.methods.at(methodName);
+                vtableArr.push_back(method);
+                llvmMethods.insert({ methodName, method });
+                vtableBody.push_back(method->getType());
+                definedMethods.insert(methodName);
+            }
+
+            pc = cd.parent;
+        }
+        for (const auto& method : methods) {
+            // Prepend class name to function name
+            methodOrder.push_back(method->name);
+            method->name = genericClassName + "__" + method->name;
+
+            // Add "this" arg for reference to the class
+            method->args.push_back(new ASTVariableDefinition("this", { name, genericTypes }));
+            vector<llvm::Type*> argTypes;
+            for (const auto& arg : method->args) {
+                auto argType = getLLVMGenericTypeByVariableType(arg->type, data.classes, genericTypes, g, data.context, classType, name);
+                if (!argType) {
+                    cerr << "Error: unknown argument type " << convertVariableTypeToString(arg->type) << endl;
+                    exit(EXIT_FAILURE);
+                }
+                argTypes.push_back(argType);
+            }
+            auto returnType = getLLVMGenericTypeByVariableType(method->returnType, data.classes, genericTypes, g,
+                                                               data.context, classType, name);
+            if (!returnType) {
+                cerr << "Error: invalid method return type " << method->returnType.type << endl;
+                exit(EXIT_FAILURE);
+            }
+            llvm::FunctionType* ft = llvm::FunctionType::get(returnType, argTypes, false);
+            vtableBody.push_back(llvm::PointerType::getUnqual(ft));
+            auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method->name, *data.module);
+            unsigned index = 0;
+            for (auto &arg : func->args()) {
+                arg.setName(method->args[index++]->name);
+            }
+        }
+        vtable->setBody(vtableBody);
+        auto vtableType = llvm::PointerType::getUnqual(vtable);
+        fieldLLVMTypes.push_back(vtableType);
         if (!parentClass.empty()) {
             // Add parent class's fields
             if (!data.classes->count(parentClass)) {
@@ -111,46 +182,25 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         }
         classType->setBody(fieldLLVMTypes);
         data.classes->erase(genericClassName);
-        data.classes->insert({ genericClassName, {classType, llvmFields, map<string, llvm::Function*>(), parentClass } });
-
-        // Generate stubs for methods so that they can recursively call themselves, call those defined after them, etc
+        data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, map<string, llvm::Function*>(), parentClass, vtableType } });
         for (const auto& method : methods) {
-            // Prepend class name to function name
-            method.second->name = genericClassName + "__" + method.first;
-
-            // Add "this" arg for reference to the class
-            method.second->args.push_back(new ASTVariableDefinition("this", { name, genericTypes }));
-            vector<llvm::Type*> argTypes;
-            for (const auto& arg : method.second->args) {
-                auto argType = getLLVMGenericTypeByVariableType(arg->type, data.classes, genericTypes, g, data.context, classType, name);
-                if (!argType) {
-                    cerr << "Error: unknown argument type " << convertVariableTypeToString(arg->type) << endl;
-                    exit(EXIT_FAILURE);
-                }
-                argTypes.push_back(argType);
-            }
-            auto returnType = getLLVMGenericTypeByVariableType(method.second->returnType, data.classes, genericTypes, g,
-                                                               data.context, classType, name);
-            if (!returnType) {
-                cerr << "Error: invalid method return type " << method.second->returnType.type << endl;
-                exit(EXIT_FAILURE);
-            }
-            llvm::FunctionType* ft = llvm::FunctionType::get(returnType, argTypes, false);
-            auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method.second->name, *data.module);
-            unsigned index = 0;
-            for (auto &arg : func->args()) {
-                arg.setName(method.second->args[index++]->name);
-            }
+            cout << "Method args size: " << method->args.size() << endl;
+            auto m = (llvm::Function*) method->codegen(data);
+            llvmMethods.insert({ method->name.substr(genericClassName.size() + 2, method->name.size() - (genericClassName.size() + 2)), m });
+            vtableArr.push_back(m);
+            method->args.pop_back();
         }
-        map<string, llvm::Function*> llvmMethods;
-        for (const auto& method : methods) {
-            cout << "Method args size: " << method.second->args.size() << endl;
-            auto m = (llvm::Function*) method.second->codegen(data);
-            llvmMethods.insert({ name, m });
-            method.second->args.pop_back();
+        auto vtableGlobal = new llvm::GlobalVariable(*data.module, vtable, false, llvm::GlobalValue::CommonLinkage,
+                                                     nullptr, genericClassName + "_vtable");
+
+        vtableGlobal->setInitializer(llvm::ConstantStruct::get(vtable, llvm::ArrayRef<llvm::Constant*>(vtableArr)));
+        // For some reason, the vtable fields are initialized with nulls unless they are initialized in a function
+        for (int i = 0; i < vtableArr.size(); i++) {
+            auto gep = data.builder->CreateStructGEP(vtableGlobal, i);
+            data.builder->CreateStore(vtableArr[i], gep);
         }
         data.classes->erase(genericClassName);
-        data.classes->insert({ genericClassName, {classType, llvmFields, llvmMethods, parentClass } });
+        data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, llvmMethods, parentClass, vtableType, vtableGlobal } });
         data.generics->clear();
     }
     return nullptr;

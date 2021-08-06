@@ -27,7 +27,7 @@ llvm::Value* ASTClassFieldStore::codegen(CodegenData data) {
         exit(EXIT_FAILURE);
     }
     cout << "fieldNumber: " << fieldNumber << endl;
-    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, fieldNumber)) };
+    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, fieldNumber + 1)) };
     llvm::Value* gep = data.builder->CreateGEP(parent, elementIndex);
     data.builder->CreateStore(value->codegen(data), gep);
     return gep;

@@ -4,6 +4,8 @@
 
 #include "include/ASTMethodCall.h"
 #include "include/ASTClassFieldAccess.h"
+#include "include/ASTStringExpression.h"
+#include "include/ASTFunctionInvocation.h"
 
 llvm::Value* ASTMethodCall::codegen(CodegenData data) {
     cout << "ASTMethodCall::codegen" << endl;
@@ -17,20 +19,25 @@ llvm::Value* ASTMethodCall::codegen(CodegenData data) {
         cerr << "Error: unknown class " << className << " of object" << endl;
         exit(EXIT_FAILURE);
     }
-    string name = className + "__" + methodName;
-    llvm::Function* method = data.module->getFunction(name);
-    string parentClass = data.classes->at(className).parent;
-    while (!method && !parentClass.empty()) {
-        name = parentClass + "__" + methodName;
-        method = data.module->getFunction(name);
-        parentClass = data.classes->at(parentClass).parent;
+    auto classData = data.classes->at(className);
+    int methodIndex = -1;
+
+    for (int i = 0 ; i < classData.methodOrder.size(); i++) {
+        if (classData.methodOrder.at(i) == methodName) {
+            methodIndex = i;
+            break;
+        }
     }
-    if (!method) {
-        cerr << "Error: unknown reference to " << name << endl;
+    if (methodIndex == -1) {
+        cerr << "Error: unknown method of " << className << ": " << methodName << endl;
         exit(EXIT_FAILURE);
     }
-    if (method->arg_size() != args.size() + 1) {
-        cerr << "Error: incorrect number of arguments passed to method " << methodName << " of class " << className << " (expected " << method->arg_size() - 1 << " but got " << args.size() << ")" << endl;
+    cout << "Method index " << methodIndex << endl;
+    auto vtable = data.builder->CreateLoad(data.builder->CreateStructGEP(parent->getType()->getPointerElementType(), parent, 0));
+    auto gep = data.builder->CreateStructGEP(vtable->getType()->getPointerElementType(), vtable, methodIndex);
+    auto method = data.builder->CreateLoad(gep);
+    if (classData.methods.at(methodName)->arg_size() != args.size() + 1) {
+        cerr << "Error: incorrect number of arguments passed to method " << methodName << " of class " << className << " (expected " << classData.methods.at(methodName)->arg_size() - 1 << " but got " << args.size() << ")" << endl;
         exit(EXIT_FAILURE);
     }
     vector<llvm::Value*> argsV;
@@ -38,5 +45,6 @@ llvm::Value* ASTMethodCall::codegen(CodegenData data) {
         argsV.push_back(arg->codegen(data));
     }
     argsV.push_back(parent);
-    return data.builder->CreateCall(method, argsV, "calltmp");
+    auto call = data.builder->CreateCall(llvm::FunctionCallee(classData.methods.at(methodName)->getFunctionType(), method), argsV, "calltmp");
+    return call;
 }

@@ -79,8 +79,11 @@ struct ClassFieldType {
 struct ClassData {
     llvm::Type* type;
     vector<ClassFieldType> fields;
+    vector<string> methodOrder;
     map<string, llvm::Function*> methods;
     string parent;
+    llvm::Type* vtableType;
+    llvm::Value* vtableGlobal;
 };
 
 llvm::Type* getLLVMTypeByPrimitiveVariableType(PrimitiveVariableType type, llvm::LLVMContext* context);

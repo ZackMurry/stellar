@@ -33,7 +33,7 @@ llvm::Value* ASTClassFieldAccess::codegen(CodegenData data) {
         cerr << "Error: unknown field of class " << className << ": " << fieldName << endl;
         exit(EXIT_FAILURE);
     }
-    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, fieldNumber)) };
+    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, fieldNumber + 1)) };
     llvm::Value* gep = data.builder->CreateGEP(parent, elementIndex);
     return data.builder->CreateLoad(gep);
 }
