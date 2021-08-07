@@ -36,6 +36,7 @@ llvm::Value* ASTMethodCall::codegen(CodegenData data) {
     auto vtable = data.builder->CreateLoad(data.builder->CreateStructGEP(parent->getType()->getPointerElementType(), parent, 0));
     auto gep = data.builder->CreateStructGEP(vtable->getType()->getPointerElementType(), vtable, methodIndex);
     auto method = data.builder->CreateLoad(gep);
+    cout << "Has method " << methodName << " " << classData.methods.count(methodName) << endl;
     if (classData.methods.at(methodName)->arg_size() != args.size() + 1) {
         cerr << "Error: incorrect number of arguments passed to method " << methodName << " of class " << className << " (expected " << classData.methods.at(methodName)->arg_size() - 1 << " but got " << args.size() << ")" << endl;
         exit(EXIT_FAILURE);
@@ -45,6 +46,10 @@ llvm::Value* ASTMethodCall::codegen(CodegenData data) {
         argsV.push_back(arg->codegen(data));
     }
     argsV.push_back(parent);
+//    vector<llvm::Value*> printfArgs;
+//    printfArgs.push_back(ASTStringExpression("Method: %d\n").codegen(data));
+//    printfArgs.push_back(method);
+//    data.builder->CreateCall(data.module->getFunction("printf"), llvm::ArrayRef<llvm::Value*>(printfArgs));
     auto call = data.builder->CreateCall(llvm::FunctionCallee(classData.methods.at(methodName)->getFunctionType(), method), argsV, "calltmp");
     return call;
 }

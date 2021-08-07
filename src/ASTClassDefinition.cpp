@@ -99,31 +99,79 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         vector<llvm::Constant*> vtableArr;
         map<string, llvm::Function*> llvmMethods;
         set<string> definedMethods;
+        map<string, bool> isMethodOverriding;
         for (const auto& method : methods) {
             definedMethods.insert(method->name);
         }
-        while (!pc.empty()) {
-            if (!data.classes->count(parentClass)) {
-                cerr << "Error: unknown parent class " << parentClass << endl;
-            }
-            auto cd = data.classes->at(parentClass);
-            for (const auto& methodName : cd.methodOrder) {
+        if (!pc.empty()) {
+            cout << "Class has parent" << endl;
+            auto cd = data.classes->at(pc);
+            for (const auto &methodName : cd.methodOrder) {
                 if (definedMethods.count(methodName)) {
                     cout << "Skipping inherited method " << methodName << endl;
-                    continue;
-                }
-                cout << "Inherited method " << methodName << endl;
-                methodOrder.push_back(methodName);
-                auto method = cd.methods.at(methodName);
-                vtableArr.push_back(method);
-                llvmMethods.insert({ methodName, method });
-                vtableBody.push_back(method->getType());
-                definedMethods.insert(methodName);
-            }
+                    // Prepend class name to function name
+                    ASTFunctionDefinition* method;
+                    for (const auto& m : methods) {
+                        if (m->name == methodName) {
+                            method = m;
+                            break;
+                        }
+                    }
+                    if (!method) {
+                        cerr << "Internal error: could not find overriding method" << endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    methodOrder.push_back(method->name);
+                    isMethodOverriding.insert({ methodName, true });
+                    method->name = genericClassName + "__" + method->name;
 
-            pc = cd.parent;
+                    // Add "this" arg for reference to the class
+                    method->args.push_back(new ASTVariableDefinition("this", { name, genericTypes }));
+                    vector<llvm::Type*> argTypes;
+                    for (const auto& arg : method->args) {
+                        auto argType = getLLVMGenericTypeByVariableType(arg->type, data.classes, genericTypes, g, data.context, classType, name);
+                        if (!argType) {
+                            cerr << "Error: unknown argument type " << convertVariableTypeToString(arg->type) << endl;
+                            exit(EXIT_FAILURE);
+                        }
+                        argTypes.push_back(argType);
+                    }
+                    auto returnType = getLLVMGenericTypeByVariableType(method->returnType, data.classes, genericTypes, g,
+                                                                     data.context, classType, name);
+                    if (!returnType) {
+                        cerr << "Error: invalid method return type " << method->returnType.type << endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    llvm::FunctionType* ft = llvm::FunctionType::get(returnType, argTypes, false);
+                    auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method->name, *data.module);
+                    unsigned index = 0;
+                    for (auto &arg : func->args()) {
+                        arg.setName(method->args[index++]->name);
+                    }
+                    auto c = (llvm::Function*) method->codegen(data);
+                    vtableBody.push_back(c->getType());
+                    vtableArr.push_back(c);
+                    llvmMethods.insert({ methodName, c });
+                    method->name = methodName;
+                } else {
+                    cout << "Inherited method " << methodName << endl;
+                    methodOrder.push_back(methodName);
+                    for (const auto& m : cd.methods) {
+                        cout << "Inheritance: " << m.first << endl;
+                    }
+                    auto method = cd.methods.at(methodName);
+                    vtableArr.push_back(method);
+                    llvmMethods.insert({methodName, method});
+                    vtableBody.push_back(method->getType());
+                    definedMethods.insert(methodName);
+                }
+            }
         }
         for (const auto& method : methods) {
+            if (isMethodOverriding.count(method->name)) {
+                method->name = genericClassName + "__" + method->name;
+                continue;
+            }
             // Prepend class name to function name
             methodOrder.push_back(method->name);
             method->name = genericClassName + "__" + method->name;
@@ -183,12 +231,26 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         classType->setBody(fieldLLVMTypes);
         data.classes->erase(genericClassName);
         data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, map<string, llvm::Function*>(), parentClass, vtableType } });
-        for (const auto& method : methods) {
-            cout << "Method args size: " << method->args.size() << endl;
+        for (const auto& methodName : methodOrder) {
+            if (isMethodOverriding.count(methodName)) {
+                continue;
+            }
+            ASTFunctionDefinition* method = nullptr;
+            for (const auto& m : methods) {
+                if (m->name == genericClassName + "__" + methodName) {
+                    method = m;
+                    break;
+                }
+            }
+            if (!method) {
+                continue;
+            }
             auto m = (llvm::Function*) method->codegen(data);
-            llvmMethods.insert({ method->name.substr(genericClassName.size() + 2, method->name.size() - (genericClassName.size() + 2)), m });
+            string originalMethodName = method->name.substr(genericClassName.size() + 2, method->name.size() - (genericClassName.size() + 2));
+            llvmMethods.insert({ originalMethodName, m });
             vtableArr.push_back(m);
             method->args.pop_back();
+            method->name = originalMethodName;
         }
         auto vtableGlobal = new llvm::GlobalVariable(*data.module, vtable, false, llvm::GlobalValue::CommonLinkage,
                                                      nullptr, genericClassName + "_vtable");

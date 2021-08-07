@@ -21,7 +21,7 @@ public:
     vector<VariableType> genericTypes;
     vector<vector<VariableType>> genericUsages;
     string parentClass; // Empty means none
-    explicit ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, vector<ASTFunctionDefinition*> methods, vector<VariableType> genericTypes, string parentClass) : name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)), parentClass(move(parentClass)) {}
+    ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, vector<ASTFunctionDefinition*> methods, vector<VariableType> genericTypes, string parentClass) : name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)), parentClass(move(parentClass)) {}
     string toString() override {
         string s = "[CLASS_DEF: " + name + " parent: [" + parentClass + "] generics: [";
         for (const auto& gt : genericTypes) {

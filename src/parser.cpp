@@ -51,6 +51,7 @@ using namespace std;
 // todo: @Annotations
 // todo: interfaces
 // todo: abstract classes
+// todo: make virtual methods be explicitly declared as virtual to remove overhead
 
 unsigned long parsingIndex = 0;
 

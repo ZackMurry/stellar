@@ -1,0 +1,65 @@
+extern v printf(s fmt, ...)
+
+class Base {
+    i32 x
+
+    i32 getX() {
+        ret this.x
+    }
+
+    v setX(i32 x) {
+        this.x = x
+    }
+}
+
+class Derived extends Base {
+    i32 y
+
+    i32 getY() {
+        ret this.y
+    }
+
+    v setY(i32 y) {
+        this.y = y
+    }
+
+    i32 getX() {
+        ret 1337
+    }
+}
+
+class SuperDerived extends Derived {
+    i32 z
+
+    i32 getZ() {
+        ret this.z
+    }
+
+    v setZ(i32 z) {
+        this.z = z
+    }
+
+    i32 getSum() {
+        ret this.x + this.y + this.z
+    }
+}
+
+new Base base
+base.setX(10)
+printf("%d\n", base.getX())
+
+new Derived derived
+derived.setX(10)
+derived.setY(15)
+printf("%d\n", derived.getX())
+printf("%d\n", derived.x)
+printf("%d\n", derived.getY())
+
+new SuperDerived superDerived
+superDerived.setX(10)
+superDerived.setY(15)
+superDerived.setZ(20)
+printf("%d\n", superDerived.getX())
+printf("%d\n", superDerived.getY())
+printf("%d\n", superDerived.getZ())
+printf("%d\n", superDerived.getSum())
