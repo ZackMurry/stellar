@@ -76,6 +76,10 @@ struct ClassFieldType {
     llvm::Type* type;
 };
 
+struct MethodAttributes {
+    bool isVirtual;
+};
+
 struct ClassData {
     llvm::Type* type;
     vector<ClassFieldType> fields;
@@ -84,6 +88,7 @@ struct ClassData {
     string parent;
     llvm::Type* vtableType;
     llvm::Value* vtableGlobal;
+    map<string, MethodAttributes> methodAttributes;
 };
 
 llvm::Type* getLLVMTypeByPrimitiveVariableType(PrimitiveVariableType type, llvm::LLVMContext* context);

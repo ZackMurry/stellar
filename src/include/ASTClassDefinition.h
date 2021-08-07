@@ -21,7 +21,8 @@ public:
     vector<VariableType> genericTypes;
     vector<vector<VariableType>> genericUsages;
     string parentClass; // Empty means none
-    ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, vector<ASTFunctionDefinition*> methods, vector<VariableType> genericTypes, string parentClass) : name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)), parentClass(move(parentClass)) {}
+    map<string, MethodAttributes> methodAttributes;
+    ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, vector<ASTFunctionDefinition*> methods, vector<VariableType> genericTypes, string parentClass, map<string, MethodAttributes> methodAttributes) : name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)), parentClass(move(parentClass)), methodAttributes(move(methodAttributes)) {}
     string toString() override {
         string s = "[CLASS_DEF: " + name + " parent: [" + parentClass + "] generics: [";
         for (const auto& gt : genericTypes) {
@@ -43,7 +44,11 @@ public:
         for (const auto& method : methods) {
             s += method->toString();
         }
-        return s + "]]";
+        s += "] method attributes: [";
+        for (const auto& ma : methodAttributes) {
+            s += "[name: " + ma.first + " isVirtual: " + to_string(ma.second.isVirtual) + "]";
+        }
+        return s + "]";
     }
     llvm::Value* codegen(CodegenData data) override;
     ASTNodeType getType() override {

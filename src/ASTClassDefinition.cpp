@@ -108,6 +108,10 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
             auto cd = data.classes->at(pc);
             for (const auto &methodName : cd.methodOrder) {
                 if (definedMethods.count(methodName)) {
+                    if (!cd.methodAttributes.at(methodName).isVirtual) {
+                        cerr << "Error: illegal override of non-virtual method " << methodName << endl;
+                        exit(EXIT_FAILURE);
+                    }
                     cout << "Skipping inherited method " << methodName << endl;
                     // Prepend class name to function name
                     ASTFunctionDefinition* method;
@@ -149,8 +153,10 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                         arg.setName(method->args[index++]->name);
                     }
                     auto c = (llvm::Function*) method->codegen(data);
-                    vtableBody.push_back(c->getType());
-                    vtableArr.push_back(c);
+                    if (methodAttributes.at(methodName).isVirtual) {
+                        vtableBody.push_back(c->getType());
+                        vtableArr.push_back(c);
+                    }
                     llvmMethods.insert({ methodName, c });
                     method->name = methodName;
                 } else {
@@ -160,14 +166,23 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                         cout << "Inheritance: " << m.first << endl;
                     }
                     auto method = cd.methods.at(methodName);
-                    vtableArr.push_back(method);
                     llvmMethods.insert({methodName, method});
-                    vtableBody.push_back(method->getType());
                     definedMethods.insert(methodName);
+                    if (!cd.methodAttributes.at(methodName).isVirtual) {
+                        // No need to add to vtable if the method won't be overridden
+                        // However, a virtual method in the parent needs to be treated as virtual in the child
+                        // in order to allow a grandchild to override it
+                        methodAttributes.insert({ methodName, { false } });
+                        continue;
+                    }
+                    methodAttributes.insert({ methodName, { true } });
+                    vtableArr.push_back(method);
+                    vtableBody.push_back(method->getType());
                 }
             }
         }
         for (const auto& method : methods) {
+            string methodName = method->name;
             if (isMethodOverriding.count(method->name)) {
                 method->name = genericClassName + "__" + method->name;
                 continue;
@@ -194,7 +209,9 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                 exit(EXIT_FAILURE);
             }
             llvm::FunctionType* ft = llvm::FunctionType::get(returnType, argTypes, false);
-            vtableBody.push_back(llvm::PointerType::getUnqual(ft));
+            if (methodAttributes.at(methodName).isVirtual) {
+                vtableBody.push_back(llvm::PointerType::getUnqual(ft));
+            }
             auto func = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, method->name, *data.module);
             unsigned index = 0;
             for (auto &arg : func->args()) {
@@ -248,21 +265,30 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
             auto m = (llvm::Function*) method->codegen(data);
             string originalMethodName = method->name.substr(genericClassName.size() + 2, method->name.size() - (genericClassName.size() + 2));
             llvmMethods.insert({ originalMethodName, m });
-            vtableArr.push_back(m);
+            if (methodAttributes.at(methodName).isVirtual) {
+                vtableArr.push_back(m);
+            }
             method->args.pop_back();
             method->name = originalMethodName;
         }
-        auto vtableGlobal = new llvm::GlobalVariable(*data.module, vtable, false, llvm::GlobalValue::CommonLinkage,
-                                                     nullptr, genericClassName + "_vtable");
+        if (!vtableArr.empty()) {
+            cout << name << " requires a vtable" << endl;
+            auto vtableGlobal = new llvm::GlobalVariable(*data.module, vtable, false, llvm::GlobalValue::CommonLinkage,
+                                                         nullptr, genericClassName + "_vtable");
 
-        vtableGlobal->setInitializer(llvm::ConstantStruct::get(vtable, llvm::ArrayRef<llvm::Constant*>(vtableArr)));
-        // For some reason, the vtable fields are initialized with nulls unless they are initialized in a function
-        for (int i = 0; i < vtableArr.size(); i++) {
-            auto gep = data.builder->CreateStructGEP(vtableGlobal, i);
-            data.builder->CreateStore(vtableArr[i], gep);
+            vtableGlobal->setInitializer(llvm::ConstantStruct::get(vtable, llvm::ArrayRef<llvm::Constant*>(vtableArr)));
+            // For some reason, the vtable fields are initialized with nulls unless they are initialized in a function
+            for (int i = 0; i < vtableArr.size(); i++) {
+                auto gep = data.builder->CreateStructGEP(vtableGlobal, i);
+                data.builder->CreateStore(vtableArr[i], gep);
+            }
+            data.classes->erase(genericClassName);
+            data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, llvmMethods, parentClass, vtableType, vtableGlobal, methodAttributes } });
+        } else {
+            data.classes->erase(genericClassName);
+            data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, llvmMethods, parentClass,
+                                                      nullptr, nullptr, methodAttributes } });
         }
-        data.classes->erase(genericClassName);
-        data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, llvmMethods, parentClass, vtableType, vtableGlobal } });
         data.generics->clear();
     }
     return nullptr;

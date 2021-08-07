@@ -59,8 +59,10 @@ llvm::Value* ASTClassInstantiation::codegen(CodegenData data) {
         argsV.push_back(data.builder->CreateLoad(alloca)); // Add object instance parameter
         data.builder->CreateCall(constructor, argsV, "newtmp");
     }
-    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)) };
-    auto gep = data.builder->CreateGEP(data.builder->CreateLoad(alloca), elementIndex);
-    data.builder->CreateStore(classData.vtableGlobal, gep);
+    if (classData.vtableGlobal) {
+        vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)) };
+        auto gep = data.builder->CreateGEP(data.builder->CreateLoad(alloca), elementIndex);
+        data.builder->CreateStore(classData.vtableGlobal, gep);
+    }
     return alloca;
 }

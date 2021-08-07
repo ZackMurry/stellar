@@ -19,7 +19,7 @@ class Derived extends Base {
         this.b = b
     }
 
-    i32 getB() {
+    virtual i32 getB() {
         ret this.b
     }
 
@@ -39,7 +39,7 @@ class SuperDerived extends Derived {
         ret this.c
     }
 
-    i32 getB() {
+    virtual i32 getB() {
         ret 1234
     }
 }

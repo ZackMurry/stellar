@@ -51,7 +51,7 @@ using namespace std;
 // todo: @Annotations
 // todo: interfaces
 // todo: abstract classes
-// todo: make virtual methods be explicitly declared as virtual to remove overhead
+// todo: override keyword for marking a method as virtual and making it more obvious that it overrides the parent
 
 unsigned long parsingIndex = 0;
 
@@ -1083,15 +1083,31 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     }
     vector<ClassFieldDefinition> fields;
     vector<ASTFunctionDefinition*> methods;
+    map<string, MethodAttributes> methodAttributes;
     while (parsingIndex < tokens.size() && (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "}")) {
-        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_NEW) {
+        while (tokens[parsingIndex].type == TOKEN_NEWLINE) {
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+        }
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_NEW && tokens[parsingIndex].type != TOKEN_VIRTUAL) {
             printFatalErrorMessage("expected identifier in class body", tokens);
         }
         string fieldType = tokens[parsingIndex].value;
         bool isConstructor = false;
+        bool isVirtual = false;
         if (tokens[parsingIndex].type == TOKEN_NEW) {
             fieldType = "v";
             isConstructor = true;
+        } else if (tokens[parsingIndex].type == TOKEN_VIRTUAL) {
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+                printFatalErrorMessage("expected function return type after 'virtual'", tokens);
+            }
+            fieldType = tokens[parsingIndex].value;
+            isVirtual = true;
         }
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
@@ -1120,8 +1136,11 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
             methods.push_back((ASTFunctionDefinition *) parseFunctionDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName));
+            methodAttributes.insert({ fieldName, { isVirtual } });
         } else if (isConstructor) {
             printFatalErrorMessage("A field cannot have the type 'new'", tokens);
+        } else if (isVirtual) {
+            printFatalErrorMessage("A field cannot be virtual", tokens);
         } else {
             cout << "field: " << fieldName << endl;
             fields.push_back({fieldName, fieldType, fieldGenericTypes});
@@ -1140,7 +1159,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             printOutOfTokensError();
         }
         cout << "class" << endl;
-        return new ASTClassDefinition(name, fields, methods, genericTypes, parentClass);
+        return new ASTClassDefinition(name, fields, methods, genericTypes, parentClass, methodAttributes);
     } else {
         printFatalErrorMessage("expected empty class", tokens);
         return nullptr;

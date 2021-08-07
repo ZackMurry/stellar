@@ -3,7 +3,7 @@ extern v printf(s fmt, ...)
 class Base {
     i32 x
 
-    i32 getX() {
+    virtual i32 getX() {
         ret this.x
     }
 
@@ -23,7 +23,7 @@ class Derived extends Base {
         this.y = y
     }
 
-    i32 getX() {
+    virtual i32 getX() {
         ret 1337
     }
 }

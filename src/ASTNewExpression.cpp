@@ -10,13 +10,13 @@ llvm::Value* ASTNewExpression::codegen(CodegenData data) {
         cerr << "Error: expected valid class type for class instantiation but instead found " << genericClassName << endl;
         exit(EXIT_FAILURE);
     }
-    auto c = data.classes->at(genericClassName).type;
-    auto alloca = data.builder->CreateAlloca(llvm::PointerType::getUnqual(c), nullptr, "new_exp");
+    auto cd = data.classes->at(genericClassName);
+    auto alloca = data.builder->CreateAlloca(llvm::PointerType::getUnqual(cd.type), nullptr, "new_exp");
     auto inst = llvm::CallInst::CreateMalloc(
             data.builder->GetInsertBlock(),
             llvm::Type::getInt64PtrTy(*data.context),
-            c,
-            llvm::ConstantExpr::getSizeOf(c),
+            cd.type,
+            llvm::ConstantExpr::getSizeOf(cd.type),
             nullptr,
             nullptr);
     data.builder->CreateStore(data.builder->Insert(inst), alloca);
@@ -38,8 +38,10 @@ llvm::Value* ASTNewExpression::codegen(CodegenData data) {
         argsV.push_back(load); // Add object instance parameter
         data.builder->CreateCall(constructor, argsV, "newtmp");
     }
-    vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)) };
-    auto gep = data.builder->CreateGEP(data.builder->CreateLoad(alloca), elementIndex);
-    data.builder->CreateStore(data.classes->at(genericClassName).vtableGlobal, gep);
+    if (cd.vtableGlobal) {
+        vector<llvm::Value*> elementIndex = { llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)), llvm::ConstantInt::get(*data.context, llvm::APInt(32, 0)) };
+        auto gep = data.builder->CreateGEP(data.builder->CreateLoad(alloca), elementIndex);
+        data.builder->CreateStore(cd.vtableGlobal, gep);
+    }
     return load;
 }

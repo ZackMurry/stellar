@@ -402,6 +402,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "virtual") {
+        token.type = TOKEN_VIRTUAL;
+        token.value = "";
+        return token;
+    }
     token.type = TOKEN_IDENTIFIER;
     token.value = word;
     return token;

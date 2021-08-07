@@ -20,23 +20,39 @@ llvm::Value* ASTMethodCall::codegen(CodegenData data) {
         exit(EXIT_FAILURE);
     }
     auto classData = data.classes->at(className);
-    int methodIndex = -1;
 
-    for (int i = 0 ; i < classData.methodOrder.size(); i++) {
-        if (classData.methodOrder.at(i) == methodName) {
-            methodIndex = i;
-            break;
+    llvm::Value* method;
+    cout << "Determining if " << methodName << " of " << className << " is virtual" << endl;
+    if (classData.methodAttributes.at(methodName).isVirtual) {
+        int methodIndex = -1;
+        bool found = false;
+        cout << methodName << " is virtual" << endl;
+        for (int i = 0 ; i < classData.methodOrder.size(); i++) {
+            if (classData.methodOrder.at(i) == methodName) {
+                methodIndex++;
+                found = true;
+                break;
+            } else if (classData.methodAttributes.at(classData.methodOrder.at(i)).isVirtual) {
+                methodIndex++;
+            }
+        }
+        if (!found) {
+            cerr << "Error: unknown method of " << className << ": " << methodName << endl;
+            exit(EXIT_FAILURE);
+        }
+        cout << "Method index " << methodIndex << endl;
+        auto vtable = data.builder->CreateLoad(data.builder->CreateStructGEP(parent->getType()->getPointerElementType(), parent, 0));
+        auto gep = data.builder->CreateStructGEP(vtable->getType()->getPointerElementType(), vtable, methodIndex);
+        method = data.builder->CreateLoad(gep);
+        cout << "Has method " << methodName << " " << classData.methods.count(methodName) << endl;
+    } else {
+        cout << methodName << " is not virtual" << endl;
+        method = classData.methods.at(methodName);
+        if (!method) {
+            cerr << "Error: unknown method of " << className << ": " << methodName << endl;
+            exit(EXIT_FAILURE);
         }
     }
-    if (methodIndex == -1) {
-        cerr << "Error: unknown method of " << className << ": " << methodName << endl;
-        exit(EXIT_FAILURE);
-    }
-    cout << "Method index " << methodIndex << endl;
-    auto vtable = data.builder->CreateLoad(data.builder->CreateStructGEP(parent->getType()->getPointerElementType(), parent, 0));
-    auto gep = data.builder->CreateStructGEP(vtable->getType()->getPointerElementType(), vtable, methodIndex);
-    auto method = data.builder->CreateLoad(gep);
-    cout << "Has method " << methodName << " " << classData.methods.count(methodName) << endl;
     if (classData.methods.at(methodName)->arg_size() != args.size() + 1) {
         cerr << "Error: incorrect number of arguments passed to method " << methodName << " of class " << className << " (expected " << classData.methods.at(methodName)->arg_size() - 1 << " but got " << args.size() << ")" << endl;
         exit(EXIT_FAILURE);
