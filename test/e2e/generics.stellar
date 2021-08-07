@@ -1,4 +1,4 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 class Container<T> {
     T val
@@ -7,7 +7,7 @@ class Container<T> {
         ret this.val
     }
 
-    v setVal(T val) {
+    void setVal(T val) {
         this.val = val
     }
 }
@@ -16,6 +16,6 @@ new Container<i32> intContainer
 intContainer.setVal(12)
 printf("%d\n", intContainer.getVal())
 
-Container<d> doubleContainer = new Container<d>()
-doubleContainer.setVal(13.37d)
+Container<f64> doubleContainer = new Container<f64>()
+doubleContainer.setVal(13.37f64)
 printf("%.2f\n", doubleContainer.getVal())

@@ -1,4 +1,4 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 class Box {
     i32 width

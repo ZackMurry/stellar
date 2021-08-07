@@ -1,4 +1,4 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 printf("%d\n", 5 % 3)
-printf("%.1f\n", 2.1d % 2.0d)
+printf("%.1f\n", 2.1f64 % 2.0f64)

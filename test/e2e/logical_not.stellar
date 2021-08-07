@@ -1,6 +1,6 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
-v evaluate(b val) {
+void evaluate(bool val) {
     if (val) {
         printf("1\n")
     } else {

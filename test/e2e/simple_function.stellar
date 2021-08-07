@@ -1,6 +1,6 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
-v printTheOutput() {
+void printTheOutput() {
     printf("This is the output: %d\n", 10)
 }
 printTheOutput()

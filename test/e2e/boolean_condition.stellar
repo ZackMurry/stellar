@@ -1,6 +1,6 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
-b myBool = false
+bool myBool = false
 if (myBool) {
     printf("1\n")
 } else {

@@ -17,47 +17,47 @@ TEST(ParserTest, IntegerDeclarationTest) {
 }
 
 TEST(ParserTest, FloatDeclarationTest) {
-    auto nodes = parse(tokenize("f myFloat = 2.0"));
+    auto nodes = parse(tokenize("f32 myFloat = 2.0"));
 
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[VAR_DECL: myFloat f [NUMBER: 2.0 type: 4]]");
+    ASSERT_EQ(nodes[0]->toString(), "[VAR_DECL: myFloat f32 [NUMBER: 2.0 type: 4]]");
 }
 
 TEST(ParserTest, DoubleDeclarationTest) {
-    auto nodes = parse(tokenize("d myDouble = 2.0d"));
+    auto nodes = parse(tokenize("f64 myDouble = 2.0f64"));
 
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[VAR_DECL: myDouble d [NUMBER: 2.0 type: 5]]");
+    ASSERT_EQ(nodes[0]->toString(), "[VAR_DECL: myDouble f64 [NUMBER: 2.0 type: 5]]");
 }
 
 TEST(ParserTest, FunctionDefinitionTest) {
-    auto nodes = parse(tokenize("v myFunc() {}"));
+    auto nodes = parse(tokenize("void myFunc() {}"));
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [] body: [] returnType: v]");
+    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [] body: [] returnType: void]");
 
     nodes = parse(tokenize("i32 myFunc() {}"));
     ASSERT_EQ(nodes.size(), 1);
     ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [] body: [] returnType: i32]");
 
-    nodes = parse(tokenize("v myFunc() {i32 i = 0}"));
+    nodes = parse(tokenize("void myFunc() {i32 i = 0}"));
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [] body: [[VAR_DECL: i i32 [NUMBER: 0 type: 2]]] returnType: v]");
+    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [] body: [[VAR_DECL: i i32 [NUMBER: 0 type: 2]]] returnType: void]");
 
-    nodes = parse(tokenize("v myFunc() {i32 i = 0\ni32 j = 1\ni32 k = 2}"));
+    nodes = parse(tokenize("void myFunc() {i32 i = 0\ni32 j = 1\ni32 k = 2}"));
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [] body: [[VAR_DECL: i i32 [NUMBER: 0 type: 2]][VAR_DECL: j i32 [NUMBER: 1 type: 2]][VAR_DECL: k i32 [NUMBER: 2 type: 2]]] returnType: v]");
+    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [] body: [[VAR_DECL: i i32 [NUMBER: 0 type: 2]][VAR_DECL: j i32 [NUMBER: 1 type: 2]][VAR_DECL: k i32 [NUMBER: 2 type: 2]]] returnType: void]");
 
-    nodes = parse(tokenize("v myFunc(i32 arg) {}"));
+    nodes = parse(tokenize("void myFunc(i32 arg) {}"));
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [[VAR_DEF: arg i32]] body: [] returnType: v]");
+    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [[VAR_DEF: arg i32]] body: [] returnType: void]");
 
-    nodes = parse(tokenize("v myFunc(i32 arg1, i32 arg2) {}"));
+    nodes = parse(tokenize("void myFunc(i32 arg1, i32 arg2) {}"));
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [[VAR_DEF: arg1 i32][VAR_DEF: arg2 i32]] body: [] returnType: v]");
+    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [[VAR_DEF: arg1 i32][VAR_DEF: arg2 i32]] body: [] returnType: void]");
 
-    nodes = parse(tokenize("v myFunc(i8 arg1, i16 arg2, i32 arg3, i64 arg4) {}"));
+    nodes = parse(tokenize("void myFunc(i8 arg1, i16 arg2, i32 arg3, i64 arg4) {}"));
     ASSERT_EQ(nodes.size(), 1);
-    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [[VAR_DEF: arg1 i8][VAR_DEF: arg2 i16][VAR_DEF: arg3 i32][VAR_DEF: arg4 i64]] body: [] returnType: v]");
+    ASSERT_EQ(nodes[0]->toString(), "[FUN_DEF: myFunc args: [[VAR_DEF: arg1 i8][VAR_DEF: arg2 i16][VAR_DEF: arg3 i32][VAR_DEF: arg4 i64]] body: [] returnType: void]");
 }
 
 TEST(ParserTest, FunctionInvocationTest) {

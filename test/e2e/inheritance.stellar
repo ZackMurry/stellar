@@ -1,9 +1,9 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 class Base {
     i32 a
 
-    v setA(i32 a) {
+    void setA(i32 a) {
         this.a = a
     }
 
@@ -15,7 +15,7 @@ class Base {
 class Derived extends Base {
     i32 b
 
-    v setB(i32 b) {
+    void setB(i32 b) {
         this.b = b
     }
 
@@ -29,13 +29,13 @@ class Derived extends Base {
 }
 
 class SuperDerived extends Derived {
-    d c
+    f64 c
 
-    v setC(d c) {
+    void setC(f64 c) {
         this.c = c
     }
 
-    d getC() {
+    f64 getC() {
         ret this.c
     }
 
@@ -57,7 +57,7 @@ printf("%s\n", derived.class)
 new SuperDerived sd()
 sd.setA(12)
 sd.b = 1337
-sd.setC(20.04d)
+sd.setC(20.04f64)
 printf("%d\n", sd.getA())
 printf("%d\n", sd.a)
 printf("%d\n", sd.getB())
@@ -67,7 +67,7 @@ printf("%.2f\n", sd.getC())
 printf("%.2f\n", sd.c)
 printf("%s\n", sd.class)
 
-v printBaseA(Base base) {
+void printBaseA(Base base) {
     printf("%d\n", base.a)
 }
 

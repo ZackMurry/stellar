@@ -320,10 +320,7 @@ struct Token readToken() {
         if (lexingIndex >= content.size()) {
             return token;
         }
-        if (content.at(lexingIndex) == 'f' || content.at(lexingIndex) == 'd') {
-            token.value += content.at(lexingIndex);
-            consumeChar();
-        } else if (content.at(lexingIndex) == 'i') {
+        if (content.at(lexingIndex) == 'i' || content.at(lexingIndex) == 'f' || content.at(lexingIndex) == 'd') {
             token.value += content.at(lexingIndex);
             consumeChar();
             while (lexingIndex < content.size() && isdigit(content.at(lexingIndex))) {

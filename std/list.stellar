@@ -1,14 +1,13 @@
-extern v printf(s, ...)
+extern void printf(string, ...)
 
 // This is an example standard library class
-// Since generics aren't implemented yet, data structures can be a bit sketchy
 
 class ListNode<T> {
     ListNode<T> next
     i32 len
     T val
 
-    v append(T val) {
+    void append(T val) {
         if (this.len == 1) {
             new ListNode<T> node
             node.len = 1
@@ -28,7 +27,7 @@ class ListNode<T> {
         }
     }
 
-    v print() {
+    void print() {
         if (this.len == 1) {
             printf("%d\n", this.val)
         } else {
@@ -43,7 +42,7 @@ class List<T> {
     ListNode<T> head
     i32 len
 
-    v append(T val) {
+    void append(T val) {
         if (this.len == 0) {
             new ListNode<T> node
             node.len = 1
@@ -65,7 +64,7 @@ class List<T> {
         ret this.head.at(index)
     }
 
-    v print() {
+    void print() {
         if (this.len != 0) {
             this.head.print()
         }

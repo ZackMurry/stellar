@@ -43,7 +43,7 @@ using namespace std;
 // todo: string concatenation (probably using sprintf)
 // todo: argv and argc
 // todo: exit codes
-// todo: explicit casts
+// todo: explicit casts using 'as'
 // todo: functions with the same name but different signatures
 // todo: ternary expressions
 // todo: remove requirement for generic types for classes to be defined before the class (currently, Box has to be defined before Container to use Container<Box>)
@@ -51,7 +51,8 @@ using namespace std;
 // todo: @Annotations
 // todo: interfaces
 // todo: abstract classes
-// todo: override keyword for marking a method as virtual and making it more obvious that it overrides the parent
+// todo: make .class return the actual type of the class (including which subclass) instead of just the type it's referred to by
+// todo: arrays in classes
 
 unsigned long parsingIndex = 0;
 
@@ -66,13 +67,13 @@ void printFatalErrorMessage(const string& s, vector<Token> tokens) {
 }
 
 llvm::Type* getLLVMTypeByPrimitiveVariableType(PrimitiveVariableType type, llvm::LLVMContext* context) {
-    if (type == VARIABLE_TYPE_F) {
+    if (type == VARIABLE_TYPE_F32) {
         return llvm::Type::getFloatTy(*context);
-    } else if (type == VARIABLE_TYPE_D) {
+    } else if (type == VARIABLE_TYPE_F64) {
         return llvm::Type::getDoubleTy(*context);
     } else if (type == VARIABLE_TYPE_I32) {
         return llvm::Type::getInt32Ty(*context);
-    } else if (type == VARIABLE_TYPE_V) {
+    } else if (type == VARIABLE_TYPE_VOID) {
         return llvm::Type::getVoidTy(*context);
     } else if (type == VARIABLE_TYPE_I8) {
         return llvm::Type::getInt8Ty(*context);
@@ -80,9 +81,9 @@ llvm::Type* getLLVMTypeByPrimitiveVariableType(PrimitiveVariableType type, llvm:
         return llvm::Type::getInt16Ty(*context);
     } else if (type == VARIABLE_TYPE_I64) {
         return llvm::Type::getInt64Ty(*context);
-    } else if (type == VARIABLE_TYPE_S) {
+    } else if (type == VARIABLE_TYPE_STRING) {
         return llvm::Type::getInt8PtrTy(*context);
-    } else if (type == VARIABLE_TYPE_B) {
+    } else if (type == VARIABLE_TYPE_BOOL) {
         return llvm::Type::getInt1Ty(*context);
     } else {
         std::cerr << "Parser: unimplemented type " << type << std::endl;
@@ -116,10 +117,10 @@ ASTNode* parseNumberExpression(vector<Token> tokens) {
     for (int i = 0; i < val.size(); i++) {
         cout << "i: " << i << endl;
         if (val.at(i) == '.') {
-            if (type == VARIABLE_TYPE_F) {
+            if (type == VARIABLE_TYPE_F32) {
                 printFatalErrorMessage("expected a maximum of one decimal to occur in a number", tokens);
             }
-            type = VARIABLE_TYPE_F;
+            type = VARIABLE_TYPE_F32;
             lastDigitIndex = i;
         } else if (!isdigit(val.at(i))) {
             lastDigitIndex = i - 1;
@@ -135,12 +136,12 @@ ASTNode* parseNumberExpression(vector<Token> tokens) {
     string typePart = val.substr(lastDigitIndex + 1);
     cout << "Numeric part: " << numericPart << "; type part: " << typePart << endl;
     if (!typePart.empty()) {
-        if (typePart == "f") {
-            cout << "Number is an explicit float type" << endl;
-            type = VARIABLE_TYPE_F;
-        } else if (typePart == "d") {
-            cout << "Number is an explicit double type" << endl;
-            type = VARIABLE_TYPE_D;
+        if (typePart == "f32") {
+            cout << "Number is an explicit f32 type" << endl;
+            type = VARIABLE_TYPE_F32;
+        } else if (typePart == "f64") {
+            cout << "Number is an explicit f64 type" << endl;
+            type = VARIABLE_TYPE_F64;
         } else if (typePart == "i32") {
             cout << "Number is an explicit i32 type" << endl;
             type = VARIABLE_TYPE_I32;
@@ -419,22 +420,22 @@ ASTNode* parseExpression(const vector<Token>& tokens) {
 int getPrimitiveVariableTypeFromString(const string& type) {
     if (type == "i32") {
         return VARIABLE_TYPE_I32;
-    } else if (type == "f") {
-        return VARIABLE_TYPE_F;
-    } else if (type == "d") {
-        return VARIABLE_TYPE_D;
-    } else if (type == "b") {
-        return VARIABLE_TYPE_B;
+    } else if (type == "f32") {
+        return VARIABLE_TYPE_F32;
+    } else if (type == "f64") {
+        return VARIABLE_TYPE_F64;
+    } else if (type == "bool") {
+        return VARIABLE_TYPE_BOOL;
     } else if (type == "i8") {
         return VARIABLE_TYPE_I8;
     } else if (type == "i16") {
         return VARIABLE_TYPE_I16;
     } else if (type == "i64") {
         return VARIABLE_TYPE_I64;
-    } else if (type == "v") {
-        return VARIABLE_TYPE_V;
-    } else if (type == "s") {
-        return VARIABLE_TYPE_S;
+    } else if (type == "void") {
+        return VARIABLE_TYPE_VOID;
+    } else if (type == "string") {
+        return VARIABLE_TYPE_STRING;
     } else {
         return -1;
     }
@@ -446,22 +447,22 @@ int getPrimitiveVariableTypeFromToken(const Token& token) {
     }
     if (token.value == "i32") {
         return VARIABLE_TYPE_I32;
-    } else if (token.value == "f") { // todo: change name of f, d, and b (maybe to f32, f64, and bool)
-        return VARIABLE_TYPE_F;
-    } else if (token.value == "d") {
-        return VARIABLE_TYPE_D;
-    } else if (token.value == "b") {
-        return VARIABLE_TYPE_B;
+    } else if (token.value == "f32") {
+        return VARIABLE_TYPE_F32;
+    } else if (token.value == "f64") {
+        return VARIABLE_TYPE_F64;
+    } else if (token.value == "bool") {
+        return VARIABLE_TYPE_BOOL;
     } else if (token.value == "i8") {
         return VARIABLE_TYPE_I8;
     } else if (token.value == "i16") {
         return VARIABLE_TYPE_I16;
     } else if (token.value == "i64") {
         return VARIABLE_TYPE_I64;
-    } else if (token.value == "v") {
-        return VARIABLE_TYPE_V;
-    } else if (token.value == "s") {
-        return VARIABLE_TYPE_S;
+    } else if (token.value == "void") {
+        return VARIABLE_TYPE_VOID;
+    } else if (token.value == "string") {
+        return VARIABLE_TYPE_STRING;
     } else {
         return -1;
     }
@@ -1098,7 +1099,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         bool isVirtual = false;
         bool isOverride = false;
         if (tokens[parsingIndex].type == TOKEN_NEW) {
-            fieldType = "v";
+            fieldType = "void";
             isConstructor = true;
         } else if (tokens[parsingIndex].type == TOKEN_VIRTUAL) {
             if (++parsingIndex >= tokens.size()) {
@@ -1129,7 +1130,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             fieldName = "new";
         } else {
             if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
-                if (fieldType == "v" && tokens[parsingIndex].type == TOKEN_NEW) {
+                if (fieldType == "void" && tokens[parsingIndex].type == TOKEN_NEW) {
                     // Allow "v new(...) {...}"
                     isConstructor = true;
                     fieldName = "new";

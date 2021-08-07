@@ -25,13 +25,13 @@ TEST(LexerTest, IntegerDeclarationTest) {
     ASSERT_EQ(tokens[3].value, "2");
 }
 
-TEST(LexerTest, FloatDeclarationTest) {
-    auto tokens = tokenize("f myFloat = 2.0");
+TEST(LexerTest, Float32DeclarationTest) {
+    auto tokens = tokenize("f32 myFloat = 2.0");
 
     ASSERT_EQ(tokens.size(), 4);
 
     ASSERT_EQ(tokens[0].type, TOKEN_IDENTIFIER);
-    ASSERT_EQ(tokens[0].value, "f");
+    ASSERT_EQ(tokens[0].value, "f32");
 
     ASSERT_EQ(tokens[1].type, TOKEN_IDENTIFIER);
     ASSERT_EQ(tokens[1].value, "myFloat");
@@ -43,13 +43,13 @@ TEST(LexerTest, FloatDeclarationTest) {
     ASSERT_EQ(tokens[3].value, "2.0");
 }
 
-TEST(LexerTest, DoubleDeclarationTest) {
-    auto tokens = tokenize("d myDouble = 2.0d");
+TEST(LexerTest, Float64DeclarationTest) {
+    auto tokens = tokenize("f64 myDouble = 2.0f64");
 
     ASSERT_EQ(tokens.size(), 4);
 
     ASSERT_EQ(tokens[0].type, TOKEN_IDENTIFIER);
-    ASSERT_EQ(tokens[0].value, "d");
+    ASSERT_EQ(tokens[0].value, "f64");
 
     ASSERT_EQ(tokens[1].type, TOKEN_IDENTIFIER);
     ASSERT_EQ(tokens[1].value, "myDouble");
@@ -58,15 +58,15 @@ TEST(LexerTest, DoubleDeclarationTest) {
     ASSERT_EQ(tokens[2].value, "=");
 
     ASSERT_EQ(tokens[3].type, TOKEN_NUMBER);
-    ASSERT_EQ(tokens[3].value, "2.0d");
+    ASSERT_EQ(tokens[3].value, "2.0f64");
 }
 
-TEST(LexerTest, FloatTest) {
-    auto tokens = tokenize("3f");
+TEST(LexerTest, Float32Test) {
+    auto tokens = tokenize("3f32");
 
     ASSERT_EQ(tokens.size(), 1);
     ASSERT_EQ(tokens[0].type, TOKEN_NUMBER);
-    ASSERT_EQ(tokens[0].value, "3f");
+    ASSERT_EQ(tokens[0].value, "3f32");
 
     tokens = tokenize("13.37");
     ASSERT_EQ(tokens.size(), 1);
@@ -75,16 +75,16 @@ TEST(LexerTest, FloatTest) {
 }
 
 TEST(LexerTest, DoubleTest) {
-    auto tokens = tokenize("3d");
+    auto tokens = tokenize("3f64");
 
     ASSERT_EQ(tokens.size(), 1);
     ASSERT_EQ(tokens[0].type, TOKEN_NUMBER);
-    ASSERT_EQ(tokens[0].value, "3d");
+    ASSERT_EQ(tokens[0].value, "3f64");
 
-    tokens = tokenize("13.37d");
+    tokens = tokenize("13.37f64");
     ASSERT_EQ(tokens.size(), 1);
     ASSERT_EQ(tokens[0].type, TOKEN_NUMBER);
-    ASSERT_EQ(tokens[0].value, "13.37d");
+    ASSERT_EQ(tokens[0].value, "13.37f64");
 }
 
 TEST(LexerTest, IntegerTest) {

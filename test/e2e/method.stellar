@@ -1,10 +1,10 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 class Box {
     i32 width
     i32 height
 
-    v printArea() {
+    void printArea() {
         printf("%d\n", this.width * this.height)
     }
 }

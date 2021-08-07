@@ -1,4 +1,4 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 i32 i = 0
 while (i++ < 10) {}

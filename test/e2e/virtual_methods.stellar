@@ -1,4 +1,4 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 class Base {
     i32 x
@@ -7,7 +7,7 @@ class Base {
         ret this.x
     }
 
-    v setX(i32 x) {
+    void setX(i32 x) {
         this.x = x
     }
 }
@@ -19,7 +19,7 @@ class Derived extends Base {
         ret this.y
     }
 
-    v setY(i32 y) {
+    void setY(i32 y) {
         this.y = y
     }
 
@@ -35,7 +35,7 @@ class SuperDerived extends Derived {
         ret this.z
     }
 
-    v setZ(i32 z) {
+    void setZ(i32 z) {
         this.z = z
     }
 

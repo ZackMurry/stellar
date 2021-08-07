@@ -1,4 +1,4 @@
-extern v printf(s fmt, ...)
+extern void printf(string fmt, ...)
 
 class Box<T> {
     T width
@@ -25,7 +25,7 @@ class Container<T> {
         ret this.val
     }
 
-    v setVal(T val) {
+    void setVal(T val) {
         this.val = val
     }
 }
@@ -36,13 +36,13 @@ intc.setVal(1337)
 intc2.setVal(intc.get()) // .get() to test the method invocation
 printf("%d\n", intc2.getVal().getVal())
 
-new Container<Container<Container<Container<Container<Container<d>>>>>> dc6()
-new Container<Container<Container<Container<Container<d>>>>> dc5()
-new Container<Container<Container<Container<d>>>> dc4()
-new Container<Container<Container<d>>> dc3()
-new Container<Container<d>> dc2()
-new Container<d> dc()
-dc.setVal(2.5d)
+new Container<Container<Container<Container<Container<Container<f64>>>>>> dc6()
+new Container<Container<Container<Container<Container<f64>>>>> dc5()
+new Container<Container<Container<Container<f64>>>> dc4()
+new Container<Container<Container<f64>>> dc3()
+new Container<Container<f64>> dc2()
+new Container<f64> dc()
+dc.setVal(2.5f64)
 dc2.setVal(dc)
 dc3.setVal(dc2)
 dc4.setVal(dc3)
