@@ -23,7 +23,7 @@ class Derived extends Base {
         this.y = y
     }
 
-    virtual i32 getX() {
+    override i32 getX() {
         ret 1337
     }
 }

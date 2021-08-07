@@ -109,7 +109,11 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
             for (const auto &methodName : cd.methodOrder) {
                 if (definedMethods.count(methodName)) {
                     if (!cd.methodAttributes.at(methodName).isVirtual) {
-                        cerr << "Error: illegal override of non-virtual method " << methodName << endl;
+                        cerr << "Error: illegal override of non-virtual method " << methodName << " of class " << pc << endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    if (!methodAttributes.at(methodName).isOverride) {
+                        cerr << "Error: method " << methodName << " of class " << name << " has the same name as a method in its parent class. Please mark it as overriding or rename it." << endl;
                         exit(EXIT_FAILURE);
                     }
                     cout << "Skipping inherited method " << methodName << endl;
@@ -153,10 +157,8 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                         arg.setName(method->args[index++]->name);
                     }
                     auto c = (llvm::Function*) method->codegen(data);
-                    if (methodAttributes.at(methodName).isVirtual) {
-                        vtableBody.push_back(c->getType());
-                        vtableArr.push_back(c);
-                    }
+                    vtableBody.push_back(c->getType());
+                    vtableArr.push_back(c);
                     llvmMethods.insert({ methodName, c });
                     method->name = methodName;
                 } else {
@@ -172,10 +174,10 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                         // No need to add to vtable if the method won't be overridden
                         // However, a virtual method in the parent needs to be treated as virtual in the child
                         // in order to allow a grandchild to override it
-                        methodAttributes.insert({ methodName, { false } });
+                        methodAttributes.insert({ methodName, { false, false } });
                         continue;
                     }
-                    methodAttributes.insert({ methodName, { true } });
+                    methodAttributes.insert({ methodName, { true, false } });
                     vtableArr.push_back(method);
                     vtableBody.push_back(method->getType());
                 }
@@ -186,6 +188,10 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
             if (isMethodOverriding.count(method->name)) {
                 method->name = genericClassName + "__" + method->name;
                 continue;
+            }
+            if (methodAttributes.at(method->name).isOverride) {
+                cerr << "Error: illegal override of non-existing parent method" << endl;
+                exit(EXIT_FAILURE);
             }
             // Prepend class name to function name
             methodOrder.push_back(method->name);

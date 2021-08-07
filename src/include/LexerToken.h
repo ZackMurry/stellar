@@ -26,7 +26,8 @@ enum TokenType {
     TOKEN_FOR,
     TOKEN_WHILE,
     TOKEN_EXTENDS,
-    TOKEN_VIRTUAL
+    TOKEN_VIRTUAL,
+    TOKEN_OVERRIDE
 };
 
 struct Token {

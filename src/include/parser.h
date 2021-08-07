@@ -78,6 +78,7 @@ struct ClassFieldType {
 
 struct MethodAttributes {
     bool isVirtual;
+    bool isOverride;
 };
 
 struct ClassData {

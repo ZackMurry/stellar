@@ -446,7 +446,7 @@ int getPrimitiveVariableTypeFromToken(const Token& token) {
     }
     if (token.value == "i32") {
         return VARIABLE_TYPE_I32;
-    } else if (token.value == "f") {
+    } else if (token.value == "f") { // todo: change name of f, d, and b (maybe to f32, f64, and bool)
         return VARIABLE_TYPE_F;
     } else if (token.value == "d") {
         return VARIABLE_TYPE_D;
@@ -1090,12 +1090,13 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
                 printOutOfTokensError();
             }
         }
-        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_NEW && tokens[parsingIndex].type != TOKEN_VIRTUAL) {
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_NEW && tokens[parsingIndex].type != TOKEN_VIRTUAL && tokens[parsingIndex].type != TOKEN_OVERRIDE) {
             printFatalErrorMessage("expected identifier in class body", tokens);
         }
         string fieldType = tokens[parsingIndex].value;
         bool isConstructor = false;
         bool isVirtual = false;
+        bool isOverride = false;
         if (tokens[parsingIndex].type == TOKEN_NEW) {
             fieldType = "v";
             isConstructor = true;
@@ -1108,6 +1109,16 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             }
             fieldType = tokens[parsingIndex].value;
             isVirtual = true;
+        } else if (tokens[parsingIndex].type == TOKEN_OVERRIDE) {
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+                printFatalErrorMessage("expected function return type after 'override'", tokens);
+            }
+            fieldType = tokens[parsingIndex].value;
+            isOverride = true;
+            isVirtual = true; // Make function virtual because overriding functions must be virtual
         }
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
@@ -1136,11 +1147,13 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
             methods.push_back((ASTFunctionDefinition *) parseFunctionDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName));
-            methodAttributes.insert({ fieldName, { isVirtual } });
+            methodAttributes.insert({ fieldName, { isVirtual, isOverride } });
         } else if (isConstructor) {
             printFatalErrorMessage("A field cannot have the type 'new'", tokens);
         } else if (isVirtual) {
             printFatalErrorMessage("A field cannot be virtual", tokens);
+        } else if (isOverride) {
+            printFatalErrorMessage("A field cannot be overriding", tokens);
         } else {
             cout << "field: " << fieldName << endl;
             fields.push_back({fieldName, fieldType, fieldGenericTypes});
