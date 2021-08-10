@@ -6,6 +6,6 @@
 #ifndef STELLAR_ANALYSIS_H
 #define STELLAR_ANALYSIS_H
 
-void analyze(const vector<ASTNode*>& nodes);
+void analyze(const vector<ASTNode*>& nodes, CodegenData data);
 
 #endif //STELLAR_ANALYSIS_H

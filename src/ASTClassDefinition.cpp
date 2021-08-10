@@ -66,8 +66,20 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
             genericClassName += ">";
         }
         cout << "Generic name: " << genericClassName << endl;
-        auto classType = llvm::StructType::create(*data.context, genericClassName);
-        data.classes->insert({ genericClassName, {classType} });
+        if (!data.classes->count(genericClassName)) {
+            cerr << "Internal error: expected class definition to already be defined by analysis" << endl;
+            exit(EXIT_FAILURE);
+        }
+        auto classType = (llvm::StructType*) data.classes->at(genericClassName).type;
+        cout << "is class pointer? " << classType->isPointerTy() << endl;
+        cout << "Class struct name: " << classType->getStructName().str() << endl;
+//        for (const auto& ist : *data.classes) {
+//            if (genericClassName == ist->getName().str()) {
+//                classType = ist;
+//                break;
+//            }
+//            cout << "Doesn't match " << ist->getName().str() << endl;
+//        }
         for (int i = 0; i < genericTypes.size(); i++) {
             data.generics->insert({ genericTypes.at(i).type, g.at(i) });
         }
@@ -80,7 +92,10 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
             } else if (genericValue == name) {
                 auto llvmType = llvm::PointerType::getUnqual(classType);
                 data.classes->insert({ genericType, { llvmType } });
-            } else if (getPrimitiveVariableTypeFromString(genericValue) == -1) {
+            } else if (getPrimitiveVariableTypeFromString(genericValue) != -1) {
+                data.classes->insert({ genericType, {getLLVMTypeByPrimitiveVariableType(
+                        (PrimitiveVariableType) getPrimitiveVariableTypeFromString(genericValue), data.context) } });
+            } else {
                 cerr << "Error: expected type for generic type but instead found " << genericValue << endl;
                 exit(EXIT_FAILURE);
             }

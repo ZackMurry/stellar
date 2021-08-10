@@ -20,7 +20,6 @@ int main(int argc, char *argv[]) {
     tokens = preprocessTokens(tokens, argv[1], argv[2]);
     cout << "Lexing complete" << endl;
     vector<ASTNode*> nodes = parse(tokens);
-    analyze(nodes);
     generateOutput(nodes);
     return 0;
 }

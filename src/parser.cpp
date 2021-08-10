@@ -46,7 +46,6 @@ using namespace std;
 // todo: explicit casts using 'as'
 // todo: functions with the same name but different signatures
 // todo: ternary expressions
-// todo: remove requirement for generic types for classes to be defined before the class (currently, Box has to be defined before Container to use Container<Box>)
 // todo: inheritance with generics
 // todo: @Annotations
 // todo: interfaces
@@ -1075,12 +1074,11 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
     }
-    if (tokens[parsingIndex].type != TOKEN_NEWLINE) {
-        printFatalErrorMessage("expected newline after class opening brace", tokens);
-    }
-    // Consume newline
-    if (++parsingIndex >= tokens.size()) {
-        printOutOfTokensError();
+    if (tokens[parsingIndex].type == TOKEN_NEWLINE) {
+        // Consume newline
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
     }
     vector<ClassFieldDefinition> fields;
     vector<ASTFunctionDefinition*> methods;

@@ -35,15 +35,16 @@ bool areVariableTypesEqual(const VariableType& vt1, const VariableType& vt2) {
 
 void addGenericUsageIfNotPresent(const string& className, vector<VariableType> genericTypes) {
     cout << "Adding generic usage INP to " << className << endl;
+    if (!classDefs.count(className)) { // className is either a primitive or undefined
+        return;
+    }
     auto classDef = classDefs.at(className);
     if (classDef->genericTypes.size() != genericTypes.size()) {
         cerr << "Error: wrong number of generic types for class " << classDef->name << " (expected " << classDef->genericTypes.size() << " but got " << genericTypes.size() << ")" << endl;
         exit(EXIT_FAILURE);
     }
     for (const auto& gt : genericTypes) {
-        if (!gt.genericTypes.empty()) {
-            addGenericUsageIfNotPresent(gt.type, gt.genericTypes);
-        }
+        addGenericUsageIfNotPresent(gt.type, gt.genericTypes);
     }
     for (const auto& usage : classDef->genericUsages) {
         bool isMatch = true;
@@ -155,19 +156,19 @@ void analyzeNode(ASTNode* node, string* parentClass) {
     }
 }
 
-void analyze(const vector<ASTNode*>& nodes) {
+void analyze(const vector<ASTNode*>& nodes, CodegenData data) {
     classDefs.clear();
     classLinks.clear();
     for (const auto &node : nodes) {
         analyzeNode(node, nullptr);
     }
-    for (const auto &cl : classLinks) {
+    for (const auto& cl : classLinks) {
         cout << cl.first << " has " << cl.second.size() << " class links" << endl;
         for (const auto &c : cl.second) {
             cout << cl.first << " is linked to " << c.first << endl;
         }
     }
-    for (const auto &cd : classDefs) {
+    for (const auto& cd : classDefs) {
         cout << cd.first << " has " << cd.second->genericUsages.size() << " generic usages" << endl;
         for (const auto& gu : cd.second->genericUsages) {
             cout << "Generic usage: " << endl;
@@ -175,5 +176,62 @@ void analyze(const vector<ASTNode*>& nodes) {
                 cout << convertVariableTypeToString(g) << endl;
             }
         }
+    }
+
+    // Codegen all of the class struct types
+    for (const auto& cd : classDefs) {
+        for (const auto& gu : cd.second->genericUsages) {
+            auto c = cd.second;
+            string genericClassName = c->name;
+            if (!c->genericTypes.empty()) {
+                genericClassName += "<";
+                for (int i = 0; i < gu.size(); i++) {
+                    auto genericValue = gu.at(i);
+                    if (i != 0) {
+                        genericClassName += ",";
+                    }
+                    genericClassName += convertVariableTypeToString(genericValue);
+                }
+                genericClassName += ">";
+            }
+            auto classType = llvm::StructType::create(*data.context, genericClassName);
+            data.classes->insert({ genericClassName, { classType } });
+        }
+    }
+
+    for (const auto& cd : classDefs) {
+        for (const auto& gu : cd.second->genericUsages) {
+            auto c = cd.second;
+            string genericClassName = c->name;
+            if (!c->genericTypes.empty()) {
+                genericClassName += "<";
+                for (int i = 0; i < gu.size(); i++) {
+                    auto genericValue = gu.at(i);
+                    if (i != 0) {
+                        genericClassName += ",";
+                    }
+                    genericClassName += convertVariableTypeToString(genericValue);
+                }
+                genericClassName += ">";
+            }
+            auto classType = (llvm::StructType*) data.classes->at(genericClassName).type;
+            vector<llvm::Type*> fieldLLVMTypes;
+            fieldLLVMTypes.push_back(llvm::StructType::create(*data.context));
+            for (const auto& field : cd.second->fields) {
+                cout << "Processing field " << field.name << endl;
+                auto fieldType = getLLVMGenericTypeByVariableType(field.type, data.classes, cd.second->genericTypes, gu, data.context, classType,
+                                                                  cd.second->name);
+                if (fieldType == nullptr) {
+                    cerr << "Error: expected type for field type but instead found " << convertVariableTypeToString(field.type) << endl;
+                    exit(EXIT_FAILURE);
+                }
+                fieldLLVMTypes.push_back(fieldType);
+            }
+            classType->setBody(fieldLLVMTypes);
+            data.classes->erase(genericClassName);
+            cout << "Creating body for class " << genericClassName << endl;
+            data.classes->insert({ genericClassName, { classType } });
+        }
+
     }
 }

@@ -1,0 +1,43 @@
+extern void printf(string fmt, ...)
+
+// This tests generic types that are defined after the generic class
+
+class Box<T> {
+    T val
+
+    T getVal() {
+        ret this.val
+    }
+
+    void setVal(T val) {
+        this.val = val
+    }
+}
+
+class Item {
+    i32 price
+
+    new(i32 price) {
+        this.price = price
+    }
+
+    i32 getPrice() {
+        ret this.price
+    }
+
+    void setPrice(i32 price) {
+        this.price = price
+    }
+}
+
+new Box<Item> box
+box.setVal(new Item(12))
+printf("%d\n", box.getVal().getPrice())
+
+new Box<Item> box2
+box2.setVal(new Item(1337))
+printf("%d\n", box2.getVal().getPrice())
+
+new Box<Item> box3
+box3.setVal(new Item(42))
+printf("%d\n", box3.getVal().getPrice())

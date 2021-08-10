@@ -3,6 +3,7 @@
 //
 
 #include "include/codegen.h"
+#include "include/analysis.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -27,9 +28,11 @@ void generateOutput(const vector<ASTNode*>& nodes) {
     map<string, string> objectsTypes;
     map<string, ClassData> classes;
     auto generics = new map<string, VariableType>();
+    CodegenData cd = { builder, context, entryBlock, &namedValues, module, &objectsTypes, &classes, generics };
+    analyze(nodes, cd);
     for (auto const &node : nodes) {
         cout << node->toString() << endl;
-        node->codegen({ builder, context, entryBlock, &namedValues, module, &objectsTypes, &classes, generics });
+        node->codegen(cd);
     }
 
     cout << "Adding return to main" << endl;

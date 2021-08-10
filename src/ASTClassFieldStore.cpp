@@ -9,12 +9,18 @@ llvm::Value* ASTClassFieldStore::codegen(CodegenData data) {
     cout << "ASTClassFieldStore::codegen" << endl;
     auto parent = object->codegen(data);
     if (!parent->getType()->isPointerTy() || !parent->getType()->getPointerElementType()->isStructTy()) {
-        cerr << "Error: unexpected field access of non-object variable" << endl;
+        cout << "ipt: " << parent->getType()->getPointerElementType()->isPointerTy() << endl;
+        cerr << "Error: unexpected field mutation of non-object variable: " << to_string(parent->getType()->isPointerTy()) << endl;
         exit(EXIT_FAILURE);
     }
     string className = parent->getType()->getPointerElementType()->getStructName().str();
+    cout << "cn: " << className << endl;
     int fieldNumber = -1;
     int i = 0;
+    if (!data.classes->count(className)) {
+        cerr << "Error: unknown class " << className << endl;
+        exit(EXIT_FAILURE);
+    }
     for (const auto& f : data.classes->at(className).fields) {
         if (f.name == fieldName) {
             fieldNumber = i;
