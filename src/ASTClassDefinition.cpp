@@ -118,10 +118,41 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         for (const auto& method : methods) {
             definedMethods.insert(method->name);
         }
+        auto vtableType = llvm::PointerType::getUnqual(vtable);
+        fieldLLVMTypes.push_back(vtableType);
+        if (!parentClass.empty()) {
+            // Add parent class's fields
+            if (!data.classes->count(parentClass)) {
+                cerr << "Error: unknown parent class of " << genericClassName << ": " << parentClass << endl;
+                exit(EXIT_FAILURE);
+            }
+            auto parentFields = data.classes->at(parentClass).fields;
+            cout << parentFields.size() << " parent fields" << endl;
+            for (const auto& field : parentFields) {
+                cout << "Processing parent field " << field.name << endl;
+                fieldLLVMTypes.push_back(field.type);
+                llvmFields.push_back({ field.name, name, field.type });
+            }
+        }
+        for (const auto& field : fields) {
+            cout << "Processing field " << field.name << endl;
+            auto fieldType = getLLVMGenericTypeByVariableType(field.type, data.classes, genericTypes, g, data.context, classType,
+                                                              name);
+            if (fieldType == nullptr) {
+                cerr << "Error: expected type for field type but instead found " << convertVariableTypeToString(field.type) << endl;
+                exit(EXIT_FAILURE);
+            }
+            fieldLLVMTypes.push_back(fieldType);
+            llvmFields.push_back({ field.name, name, fieldType });
+        }
+        classType->setBody(fieldLLVMTypes);
+        data.classes->erase(genericClassName);
+        data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, map<string, llvm::Function*>(), parentClass, vtableType } });
         if (!pc.empty()) {
             cout << "Class has parent" << endl;
             auto cd = data.classes->at(pc);
             for (const auto &methodName : cd.methodOrder) {
+                cout << name << " has method " << methodName << endl;
                 if (definedMethods.count(methodName)) {
                     if (!cd.methodAttributes.at(methodName).isVirtual) {
                         cerr << "Error: illegal override of non-virtual method " << methodName << " of class " << pc << endl;
@@ -177,6 +208,10 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                     llvmMethods.insert({ methodName, c });
                     method->name = methodName;
                 } else {
+                    if (!isAbstract && cd.methodAttributes.at(methodName).isAbstract) {
+                        cerr << "Error: an implementation of an abstract class must override all abstract methods (" << methodName << " is not overridden in " << name << ")" << endl;
+                        exit(EXIT_FAILURE);
+                    }
                     cout << "Inherited method " << methodName << endl;
                     methodOrder.push_back(methodName);
                     for (const auto& m : cd.methods) {
@@ -192,7 +227,7 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                         methodAttributes.insert({ methodName, { false, false } });
                         continue;
                     }
-                    methodAttributes.insert({ methodName, { true, false } });
+                    methodAttributes.insert({ methodName, { true, false, cd.methodAttributes.at(methodName).isAbstract } });
                     vtableArr.push_back(method);
                     vtableBody.push_back(method->getType());
                 }
@@ -240,33 +275,7 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
             }
         }
         vtable->setBody(vtableBody);
-        auto vtableType = llvm::PointerType::getUnqual(vtable);
-        fieldLLVMTypes.push_back(vtableType);
-        if (!parentClass.empty()) {
-            // Add parent class's fields
-            if (!data.classes->count(parentClass)) {
-                cerr << "Error: unknown parent class of " << genericClassName << ": " << parentClass << endl;
-                exit(EXIT_FAILURE);
-            }
-            auto parentFields = data.classes->at(parentClass).fields;
-            for (const auto& field : parentFields) {
-                cout << "Processing parent field " << field.name << endl;
-                fieldLLVMTypes.push_back(field.type);
-                llvmFields.push_back({ field.name, name, field.type });
-            }
-        }
-        for (const auto& field : fields) {
-            cout << "Processing field " << field.name << endl;
-            auto fieldType = getLLVMGenericTypeByVariableType(field.type, data.classes, genericTypes, g, data.context, classType,
-                                                              name);
-            if (fieldType == nullptr) {
-                cerr << "Error: expected type for field type but instead found " << convertVariableTypeToString(field.type) << endl;
-                exit(EXIT_FAILURE);
-            }
-            fieldLLVMTypes.push_back(fieldType);
-            llvmFields.push_back({ field.name, name, fieldType });
-        }
-        classType->setBody(fieldLLVMTypes);
+        fieldLLVMTypes.assign(0, vtableType);
         data.classes->erase(genericClassName);
         data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, map<string, llvm::Function*>(), parentClass, vtableType } });
         for (const auto& methodName : methodOrder) {
@@ -304,11 +313,11 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
                 data.builder->CreateStore(vtableArr[i], gep);
             }
             data.classes->erase(genericClassName);
-            data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, llvmMethods, parentClass, vtableType, vtableGlobal, methodAttributes } });
+            data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, llvmMethods, parentClass, vtableType, vtableGlobal, methodAttributes, isAbstract } });
         } else {
             data.classes->erase(genericClassName);
             data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, llvmMethods, parentClass,
-                                                      nullptr, nullptr, methodAttributes } });
+                                                      nullptr, nullptr, methodAttributes, isAbstract } });
         }
         data.generics->clear();
     }

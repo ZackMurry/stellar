@@ -29,6 +29,10 @@ llvm::Value* ASTClassInstantiation::codegen(CodegenData data) {
         exit(EXIT_FAILURE);
     }
     auto classData = data.classes->at(genericClassName);
+    if (classData.isAbstract) {
+        cerr << "Error: illegal instantiation of abstract class " << genericClassName << endl;
+        exit(EXIT_FAILURE);
+    }
     auto alloca = data.builder->CreateAlloca(llvm::PointerType::getUnqual(classData.type), nullptr, identifier);
     auto inst = llvm::CallInst::CreateMalloc(
             data.builder->GetInsertBlock(),

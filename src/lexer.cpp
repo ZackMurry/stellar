@@ -409,6 +409,11 @@ struct Token readToken() {
         token.value = "";
         return token;
     }
+    if (word == "abstract") {
+        token.type = TOKEN_ABSTRACT;
+        token.value = "";
+        return token;
+    }
     token.type = TOKEN_IDENTIFIER;
     token.value = word;
     return token;

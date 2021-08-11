@@ -23,9 +23,19 @@ public:
     vector<vector<VariableType>> genericUsages;
     string parentClass; // Empty means none
     map<string, MethodAttributes> methodAttributes;
-    ASTClassDefinition(string name, vector<ClassFieldDefinition> fields, vector<ASTFunctionDefinition*> methods, vector<VariableType> genericTypes, string parentClass, map<string, MethodAttributes> methodAttributes) : name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)), parentClass(move(parentClass)), methodAttributes(move(methodAttributes)) {}
+    bool isAbstract;
+    ASTClassDefinition(string name,
+                       vector<ClassFieldDefinition> fields,
+                       vector<ASTFunctionDefinition*> methods,
+                       vector<VariableType> genericTypes,
+                       string parentClass,
+                       map<string, MethodAttributes> methodAttributes,
+                       bool isAbstract)
+                       :
+                       name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)),
+                       parentClass(move(parentClass)), methodAttributes(move(methodAttributes)), isAbstract(isAbstract) {}
     string toString() override {
-        string s = "[CLASS_DEF: " + name + " parent: [" + parentClass + "] generics: [";
+        string s = "[CLASS_DEF: " + name + " isAbstract: " + to_string(isAbstract) + " parent: [" + parentClass + "] generics: [";
         for (const auto& gt : genericTypes) {
             s += "[" + convertVariableTypeToString(gt) + "]";
         }
@@ -47,7 +57,7 @@ public:
         }
         s += "] method attributes: [";
         for (const auto& ma : methodAttributes) {
-            s += "[name: " + ma.first + " isVirtual: " + to_string(ma.second.isVirtual) + "]";
+            s += "[name: " + ma.first + " isVirtual: " + to_string(ma.second.isVirtual) + " isOverride: " + to_string(ma.second.isOverride) + " isAbstract: " + to_string(ma.second.isAbstract) + "]";
         }
         return s + "]";
     }

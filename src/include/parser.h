@@ -79,6 +79,7 @@ struct ClassFieldType {
 struct MethodAttributes {
     bool isVirtual;
     bool isOverride;
+    bool isAbstract;
 };
 
 struct ClassData {
@@ -90,6 +91,7 @@ struct ClassData {
     llvm::Type* vtableType;
     llvm::Value* vtableGlobal;
     map<string, MethodAttributes> methodAttributes;
+    bool isAbstract;
 };
 
 llvm::Type* getLLVMTypeByPrimitiveVariableType(PrimitiveVariableType type, llvm::LLVMContext* context);

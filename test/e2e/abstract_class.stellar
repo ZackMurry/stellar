@@ -1,0 +1,29 @@
+extern void printf(string fmt, ...)
+
+abstract class AbstractWebConnectionHandler {
+    i32 numConnections
+    bool isOnline
+
+    abstract void handle(i32 id)
+    abstract i32 getType()
+}
+
+abstract class AbstractWebSocketConnectionHandler extends AbstractWebConnectionHandler {
+    override i32 getType() {
+        ret 12
+    }
+}
+
+class WebSocketConnectionHandlerImpl extends AbstractWebSocketConnectionHandler {
+    override void handle(i32 id) {
+        printf("%d\n%d\n", this.numConnections, id)
+    }
+}
+
+new WebSocketConnectionHandlerImpl wschi
+wschi.numConnections = 13
+wschi.isOnline = true
+wschi.handle(42)
+printf("%d\n", wschi.getType())
+printf("%d\n", wschi.isOnline)
+printf("%d\n", wschi.numConnections)

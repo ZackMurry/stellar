@@ -386,3 +386,10 @@ TEST(LexerTest, ExtendsTest) {
     ASSERT_EQ(tokens[0].type, TOKEN_EXTENDS);
     ASSERT_EQ(tokens[0].value, "");
 }
+
+TEST(LexerTest, AbstractTest) {
+    auto tokens = tokenize("abstract");
+    ASSERT_EQ(tokens.size(), 1);
+    ASSERT_EQ(tokens[0].type, TOKEN_ABSTRACT);
+    ASSERT_EQ(tokens[0].value, "");
+}

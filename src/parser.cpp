@@ -49,9 +49,10 @@ using namespace std;
 // todo: inheritance with generics
 // todo: @Annotations
 // todo: interfaces
-// todo: abstract classes
 // todo: make .class return the actual type of the class (including which subclass) instead of just the type it's referred to by
 // todo: arrays in classes
+// todo: super() and super.method()
+// todo: virtual constructors
 
 unsigned long parsingIndex = 0;
 
@@ -1032,9 +1033,60 @@ ASTNode* parseIfExpression(vector<Token> tokens) {
     return new ASTIfStatement(condition, body, elseBody);
 }
 
+ASTFunctionDefinition* parseAbstractMethodDefinition(vector<Token> tokens, const VariableType& returnType, const string& name) {
+    cout << "Abstract method definition" << endl;
+    vector<ASTVariableDefinition*> args;
+    while (++parsingIndex < tokens.size()) {
+        if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ")") {
+            break;
+        }
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            printFatalErrorMessage("expected type in function parameter", tokens);
+        }
+        string paramType = tokens[parsingIndex].value;
+        cout << "param type " << paramType << endl;
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        auto genericTypes = parseGenericTypes(tokens);
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+            printFatalErrorMessage("expected parameter name after type", tokens);
+        }
+        args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, {paramType, genericTypes}));
+        cout << "arg: " << args.back()->name << endl;
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+        if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ",") {
+            break;
+        }
+    }
+    if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != ")") {
+        printFatalErrorMessage("expected ')' after function parameters", tokens);
+    }
+    // Consume ')'
+    if (++parsingIndex >= tokens.size()) {
+        printOutOfTokensError();
+    }
+    if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "{") {
+        printFatalErrorMessage("unexpected body of abstract function", tokens);
+    }
+    return new ASTFunctionDefinition(name, args, vector<ASTNode*>(), returnType);
+}
+
 // expects parsingIndex to be at "class"
 ASTNode* parseClassDefinition(vector<Token> tokens) {
+    bool isAbstract = false;
+    if (tokens[parsingIndex].type == TOKEN_ABSTRACT) {
+        isAbstract = true;
+        if (++parsingIndex >= tokens.size()) {
+            printOutOfTokensError();
+        }
+    }
     cout << "Class definition" << endl;
+    if (tokens[parsingIndex].type != TOKEN_CLASS) {
+        printFatalErrorMessage("expected \"class\"", tokens);
+    }
     // Consume "class"
     if (++parsingIndex >= tokens.size()) {
         printOutOfTokensError();
@@ -1089,13 +1141,18 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
                 printOutOfTokensError();
             }
         }
-        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER && tokens[parsingIndex].type != TOKEN_NEW && tokens[parsingIndex].type != TOKEN_VIRTUAL && tokens[parsingIndex].type != TOKEN_OVERRIDE) {
+        if (tokens[parsingIndex].type != TOKEN_IDENTIFIER &&
+            tokens[parsingIndex].type != TOKEN_NEW &&
+            tokens[parsingIndex].type != TOKEN_VIRTUAL &&
+            tokens[parsingIndex].type != TOKEN_OVERRIDE &&
+            tokens[parsingIndex].type != TOKEN_ABSTRACT) {
             printFatalErrorMessage("expected identifier in class body", tokens);
         }
         string fieldType = tokens[parsingIndex].value;
         bool isConstructor = false;
         bool isVirtual = false;
         bool isOverride = false;
+        bool isMethodAbstract = false;
         if (tokens[parsingIndex].type == TOKEN_NEW) {
             fieldType = "void";
             isConstructor = true;
@@ -1118,6 +1175,19 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             fieldType = tokens[parsingIndex].value;
             isOverride = true;
             isVirtual = true; // Make function virtual because overriding functions must be virtual
+        } else if (tokens[parsingIndex].type == TOKEN_ABSTRACT) {
+            if (!isAbstract) {
+                printFatalErrorMessage("unexpected abstract function in non-abstract class", tokens);
+            }
+            isMethodAbstract = true;
+            isVirtual = true;
+            if (++parsingIndex >= tokens.size()) {
+                printOutOfTokensError();
+            }
+            if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
+                printFatalErrorMessage("expected function return type after 'abstract'", tokens);
+            }
+            fieldType = tokens[parsingIndex].value;
         }
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
@@ -1145,14 +1215,20 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         }
         if (tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == "(") {
             cout << "method: " << fieldName << endl;
-            methods.push_back((ASTFunctionDefinition *) parseFunctionDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName));
-            methodAttributes.insert({ fieldName, { isVirtual, isOverride } });
+            if (isMethodAbstract) {
+                methods.push_back(parseAbstractMethodDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName));
+            } else {
+                methods.push_back((ASTFunctionDefinition *) parseFunctionDefinition(tokens, {fieldType, fieldGenericTypes}, fieldName));
+            }
+            methodAttributes.insert({ fieldName, { isVirtual, isOverride, isMethodAbstract } });
         } else if (isConstructor) {
-            printFatalErrorMessage("A field cannot have the type 'new'", tokens);
+            printFatalErrorMessage("a field cannot have the type 'new'", tokens);
         } else if (isVirtual) {
-            printFatalErrorMessage("A field cannot be virtual", tokens);
+            printFatalErrorMessage("a field cannot be virtual", tokens);
         } else if (isOverride) {
-            printFatalErrorMessage("A field cannot be overriding", tokens);
+            printFatalErrorMessage("a field cannot be overriding", tokens);
+        } else if (isMethodAbstract) {
+            printFatalErrorMessage("a field cannot be abstract", tokens);
         } else {
             cout << "field: " << fieldName << endl;
             fields.push_back({fieldName, fieldType, fieldGenericTypes});
@@ -1171,7 +1247,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
             printOutOfTokensError();
         }
         cout << "class" << endl;
-        return new ASTClassDefinition(name, fields, methods, genericTypes, parentClass, methodAttributes);
+        return new ASTClassDefinition(name, fields, methods, genericTypes, parentClass, methodAttributes, isAbstract);
     } else {
         printFatalErrorMessage("expected empty class", tokens);
         return nullptr;
@@ -1318,7 +1394,7 @@ vector<ASTNode*> parse(vector<Token> tokens) {
             nodes.push_back(parseExternExpression(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_IF) {
             nodes.push_back(parseIfExpression(tokens));
-        } else if (tokens[parsingIndex].type == TOKEN_CLASS) {
+        } else if (tokens[parsingIndex].type == TOKEN_CLASS || tokens[parsingIndex].type == TOKEN_ABSTRACT) {
             nodes.push_back(parseClassDefinition(tokens));
         } else if (tokens[parsingIndex].type == TOKEN_NEW) {
             nodes.push_back(parseClassInstantiation(tokens));
