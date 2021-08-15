@@ -13,7 +13,11 @@ const runTests = async () => {
         await fs.rmSync(logPath)
     }
     console.log('Compiling stellar...')
-    await execSync(`cmake --build ${rootPath}`)
+    try {
+        await execSync(`cmake . && cmake --build ${rootPath}`)
+    } catch (e) {
+        process.exit(1)
+    }
     console.log('Finished compiling')
     const executablePath = path.join(rootPath, 'exe')
     const e2ePath = path.join(rootPath, 'test', 'e2e')
