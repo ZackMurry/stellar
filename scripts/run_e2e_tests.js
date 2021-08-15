@@ -31,6 +31,7 @@ const runTests = async () => {
     for (const file of files) {
         const fileBaseName = path.basename(file, path.extname(file))
         if (path.extname(file) === '.stellar') {
+            // todo: test timeout
             try {
                 const stdout = (await execSync(`${executablePath} ${path.join(e2ePath, file)} ${stdFolder} >> ${logPath} && clang++ ${runnerPath} ${outputPath} -o ${mainPath} -static && ${mainPath}`)).toString()
                 const content = await fs.readFileSync(path.join(e2eOutputPath, fileBaseName + '.output')).toString()
