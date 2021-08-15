@@ -10,7 +10,10 @@ jobs:
   end-to-end:
     runs-on: ubuntu-latest
     steps:
+      - name: Check PWD
+        run: |
+          echo $PWD
+          ls
       - name: Run e2e test runner
         run: |
-          ls
           node scripts/run_e2e_tests.js
