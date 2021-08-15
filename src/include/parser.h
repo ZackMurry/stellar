@@ -87,7 +87,7 @@ struct ClassData {
     vector<ClassFieldType> fields;
     vector<string> methodOrder;
     map<string, llvm::Function*> methods;
-    string parent;
+    VariableType* parent;
     llvm::Type* vtableType;
     llvm::Value* vtableGlobal;
     map<string, MethodAttributes> methodAttributes;

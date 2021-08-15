@@ -80,11 +80,42 @@ void analyzeNode(ASTNode* node, string* parentClass) {
     if (type == AST_CLASS_DEFINITION) {
         auto classNode = dynamic_cast<ASTClassDefinition*>(node);
         classDefs.insert({ classNode->name, classNode });
+        if (classNode->parentClass) {
+            cout << "Processing parentClass generic types for " << classNode->name << endl;
+            bool usesChildGeneric = false;
+            // todo: this doesn't recursively look at generic types
+            for (const auto& t : classNode->parentClass->genericTypes) {
+                for (int i = 0; i < classNode->genericTypes.size(); i++) {
+                    auto gt = classNode->genericTypes.at(i);
+                    if (t.type == gt.type) {
+                        usesChildGeneric = true;
+                        cout << "Generic used with parent class: " << classNode->parentClass->type << endl;
+                        if (classLinks.count(classNode->name) && classLinks.at(classNode->name).count(classNode->parentClass->type)) {
+                            classLinks.at(classNode->name).at(classNode->parentClass->type).push_back(i);
+                        } else if (classLinks.count(classNode->name)) {
+                            auto vec = vector<int>();
+                            vec.push_back(i);
+                            classLinks.at(classNode->name).insert({ classNode->parentClass->type, vec });
+                        } else {
+                            auto vec = vector<int>();
+                            vec.push_back(i);
+                            auto m = map<string, vector<int>>();
+                            m.insert({ classNode->parentClass->type, vec });
+                            classLinks.insert({ classNode->name, m });
+                        }
+                    }
+                }
+            }
+            if (!usesChildGeneric) {
+                addGenericUsageIfNotPresent(classNode->parentClass->type, classNode->parentClass->genericTypes);
+            }
+        }
         for (const auto& field : classNode->fields) {
             cout << "Parsing field of type " << convertVariableTypeToString(field.type) << " (" << field.name << ") of class " << classNode->name << endl;
             if (field.type.type == classNode->name) {
                 continue;
             }
+            // todo: situations like Box<Box<T>>
             for (const auto& t : field.type.genericTypes) {
                 for (int i = 0; i < classNode->genericTypes.size(); i++) {
                     auto gt = classNode->genericTypes.at(i);
@@ -107,9 +138,6 @@ void analyzeNode(ASTNode* node, string* parentClass) {
                     }
                 }
             }
-        }
-        if (!classNode->parentClass.empty()) {
-            addGenericUsageIfNotPresent(classNode->parentClass, vector<VariableType>());
         }
     } else if (type == AST_CLASS_INSTANTIATION) {
         auto instNode = dynamic_cast<ASTClassInstantiation*>(node);

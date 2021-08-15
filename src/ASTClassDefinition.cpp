@@ -110,7 +110,6 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         vector<string> methodOrder;
 
         // Generate stubs for methods so that they can recursively call themselves, call those defined after them, etc
-        string pc = parentClass;
         vector<llvm::Constant*> vtableArr;
         map<string, llvm::Function*> llvmMethods;
         set<string> definedMethods;
@@ -120,13 +119,15 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         }
         auto vtableType = llvm::PointerType::getUnqual(vtable);
         fieldLLVMTypes.push_back(vtableType);
-        if (!parentClass.empty()) {
+        string pcStr;
+        if (parentClass) {
+            pcStr = convertVariableTypeToString(mapVariableTypeToGenericTypes(*parentClass, genericTypes, g));
             // Add parent class's fields
-            if (!data.classes->count(parentClass)) {
-                cerr << "Error: unknown parent class of " << genericClassName << ": " << parentClass << endl;
+            if (!data.classes->count(pcStr)) {
+                cerr << "Error: unknown parent class of " << genericClassName << ": " << pcStr << endl;
                 exit(EXIT_FAILURE);
             }
-            auto parentFields = data.classes->at(parentClass).fields;
+            auto parentFields = data.classes->at(pcStr).fields;
             cout << parentFields.size() << " parent fields" << endl;
             for (const auto& field : parentFields) {
                 cout << "Processing parent field " << field.name << endl;
@@ -148,14 +149,14 @@ llvm::Value* ASTClassDefinition::codegen(CodegenData data) {
         classType->setBody(fieldLLVMTypes);
         data.classes->erase(genericClassName);
         data.classes->insert({ genericClassName, {classType, llvmFields, methodOrder, map<string, llvm::Function*>(), parentClass, vtableType } });
-        if (!pc.empty()) {
+        if (parentClass) {
             cout << "Class has parent" << endl;
-            auto cd = data.classes->at(pc);
+            auto cd = data.classes->at(pcStr);
             for (const auto &methodName : cd.methodOrder) {
                 cout << name << " has method " << methodName << endl;
                 if (definedMethods.count(methodName)) {
                     if (!cd.methodAttributes.at(methodName).isVirtual) {
-                        cerr << "Error: illegal override of non-virtual method " << methodName << " of class " << pc << endl;
+                        cerr << "Error: illegal override of non-virtual method " << methodName << " of class " << pcStr << endl;
                         exit(EXIT_FAILURE);
                     }
                     if (!methodAttributes.at(methodName).isOverride) {

@@ -21,21 +21,21 @@ public:
     vector<ASTFunctionDefinition*> methods;
     vector<VariableType> genericTypes;
     vector<vector<VariableType>> genericUsages;
-    string parentClass; // Empty means none
+    VariableType* parentClass; // Nullptr means none
     map<string, MethodAttributes> methodAttributes;
     bool isAbstract;
     ASTClassDefinition(string name,
                        vector<ClassFieldDefinition> fields,
                        vector<ASTFunctionDefinition*> methods,
                        vector<VariableType> genericTypes,
-                       string parentClass,
+                       VariableType* parentClass,
                        map<string, MethodAttributes> methodAttributes,
                        bool isAbstract)
                        :
                        name(move(name)), fields(move(fields)), methods(move(methods)), genericTypes(move(genericTypes)),
-                       parentClass(move(parentClass)), methodAttributes(move(methodAttributes)), isAbstract(isAbstract) {}
+                       parentClass(parentClass), methodAttributes(move(methodAttributes)), isAbstract(isAbstract) {}
     string toString() override {
-        string s = "[CLASS_DEF: " + name + " isAbstract: " + to_string(isAbstract) + " parent: [" + parentClass + "] generics: [";
+        string s = "[CLASS_DEF: " + name + " isAbstract: " + to_string(isAbstract) + " parent: [" + (parentClass ? convertVariableTypeToString(*parentClass) : "none") + "] generics: [";
         for (const auto& gt : genericTypes) {
             s += "[" + convertVariableTypeToString(gt) + "]";
         }

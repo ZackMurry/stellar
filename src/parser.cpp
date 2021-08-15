@@ -52,7 +52,6 @@ using namespace std;
 // todo: make .class return the actual type of the class (including which subclass) instead of just the type it's referred to by
 // todo: arrays in classes
 // todo: super() and super.method()
-// todo: virtual constructors
 
 unsigned long parsingIndex = 0;
 
@@ -1102,7 +1101,7 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
     // Generics
     auto genericTypes = parseGenericTypes(tokens);
 
-    string parentClass;
+    VariableType* parentClass = nullptr;
     if (tokens[parsingIndex].type == TOKEN_EXTENDS) {
         // Consume "extends"
         if (++parsingIndex >= tokens.size()) {
@@ -1111,12 +1110,15 @@ ASTNode* parseClassDefinition(vector<Token> tokens) {
         if (tokens[parsingIndex].type != TOKEN_IDENTIFIER) {
             printFatalErrorMessage("expected class name after \"extends\"", tokens);
         }
-        parentClass = tokens[parsingIndex].value;
+        parentClass = new VariableType();
+        parentClass->type = tokens[parsingIndex].value;
 
         // Consume parent class name
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
+
+        parentClass->genericTypes = parseGenericTypes(tokens);
     }
 
     if (tokens[parsingIndex].type != TOKEN_PUNCTUATION || tokens[parsingIndex].value != "{") {

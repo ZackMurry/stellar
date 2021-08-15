@@ -1,0 +1,51 @@
+extern void printf(string fmt, ...)
+
+class Parent<T> {
+    T val
+
+    T getVal() {
+        ret this.val
+    }
+
+    virtual void setVal(T val) {
+        this.val = val
+    }
+}
+
+class Child extends Parent<f64> {
+    i32 getType() {
+        ret 52
+    }
+}
+
+class GenericChild<T> extends Parent<T> {
+    i32 getType() {
+        ret 53
+    }
+}
+
+new Child child
+child.setVal(13.37f64)
+printf("%.2f\n", child.getVal())
+printf("%d\n", child.getType())
+
+new GenericChild<i32> gc
+gc.setVal(42)
+printf("%d\n", gc.getVal())
+printf("%d\n", gc.getType())
+
+class OverridingGenericChild<T> extends Parent<T> {
+    override void setVal(T val) {
+        // Do nothing
+    }
+
+    i32 getType() {
+        ret 54
+    }
+}
+
+new OverridingGenericChild<f64> ogc
+ogc.val = 4.2f64
+ogc.setVal(12f64)
+printf("%.1f\n", ogc.getVal())
+printf("%d\n", ogc.getType())
