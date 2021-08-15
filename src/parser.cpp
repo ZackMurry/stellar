@@ -40,13 +40,11 @@
 
 using namespace std;
 
-// todo: string concatenation (probably using sprintf)
+// todo: add an abstraction over sprintf using +
 // todo: argv and argc
-// todo: exit codes
 // todo: explicit casts using 'as'
 // todo: functions with the same name but different signatures
 // todo: ternary expressions
-// todo: inheritance with generics
 // todo: @Annotations
 // todo: interfaces
 // todo: make .class return the actual type of the class (including which subclass) instead of just the type it's referred to by

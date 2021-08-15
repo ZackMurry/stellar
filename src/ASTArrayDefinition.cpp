@@ -15,7 +15,7 @@ llvm::Value* ASTArrayDefinition::codegen(CodegenData data) {
         cerr << "Error: unknown array element type " << elementType << endl;
         exit(EXIT_FAILURE);
     }
-    auto alloca = data.builder->CreateAlloca(llvmElType, nullptr, "new_arr");
+    auto alloca = data.builder->CreateAlloca(llvm::PointerType::getUnqual(llvmElType), nullptr, "new_arr");
     auto inst = llvm::CallInst::CreateMalloc(
             data.builder->GetInsertBlock(),
             llvm::Type::getInt64PtrTy(*data.context),
@@ -25,7 +25,10 @@ llvm::Value* ASTArrayDefinition::codegen(CodegenData data) {
             nullptr,
             "arr_malloc");
     data.builder->CreateStore(data.builder->Insert(inst), alloca);
-    data.namedValues->insert({ name, inst });
+//    auto allocaPtr = data.builder->CreateAlloca(llvm::PointerType::getUnqual(llvmElType), nullptr, name);
+//    data.builder->CreateStore(alloca, allocaPtr);
+//    data.namedValues->insert({ name, allocaPtr });
+    data.namedValues->insert({ name, alloca });
     return inst;
 }
 

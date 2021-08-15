@@ -1,0 +1,10 @@
+extern void printf(string fmt, ...)
+
+i32[10] arr
+for (i32 i = 0; i < 10; i++) {
+    arr[i] = i + 1
+}
+
+for (i32 j = 0; j < 10; j++) {
+    printf("%d\n", arr[j])
+}

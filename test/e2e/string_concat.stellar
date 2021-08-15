@@ -1,0 +1,11 @@
+extern void printf(string fmt, ...)
+extern void sprintf(string buffer, string fmt, ...)
+
+i8[32] buffer
+sprintf(buffer, "%d:%d\n", 0, 1)
+printf(buffer)
+
+sprintf(buffer, "%d is a number\n", 42)
+printf(buffer)
+string copy = buffer
+printf(copy)

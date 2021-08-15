@@ -9,7 +9,7 @@ llvm::Value* ASTArrayAccess::codegen(CodegenData data) {
         cerr << "Error: undeclared variable " << name << endl;
         exit(EXIT_FAILURE);
     }
-    auto* gep = data.builder->CreateInBoundsGEP(data.namedValues->at(name), index->codegen(data), "acctmp");
+    auto* gep = data.builder->CreateInBoundsGEP(data.builder->CreateLoad(data.namedValues->at(name)), index->codegen(data), "acctmp");
     if (!gep->getType()->isPointerTy()) {
         gep->mutateType(getLLVMPtrTypeByType(data.namedValues->at(name)->getType()->getPointerElementType(), data.context));
     }
