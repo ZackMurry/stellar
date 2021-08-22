@@ -18,6 +18,7 @@ jobs:
       - name: Check G++ Version
         run: |
           g++ -v
+          gcc-11 -v
       - name: Run e2e test runner
         run: |
           node ./scripts/run_e2e_tests.js
