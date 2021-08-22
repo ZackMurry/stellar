@@ -6,15 +6,14 @@ const runTests = async () => {
     const logPath = path.join(__dirname, 'e2e.log')
     const rootPath = path.join(__dirname, '..')
     if (path.basename(process.cwd()) !== 'stellar') {
-        console.error('Error: wrong working directory. Your working directory should be the root directory of the project (the stellar folder)')
-        return
+        console.warn('Warning: wrong working directory. Your working directory should be the root directory of the project (the stellar folder)')
     }
     if (await fs.existsSync(logPath)) {
         await fs.rmSync(logPath)
     }
     console.log('Compiling stellar...')
     try {
-        await execSync(`cmake . && cmake --build ${rootPath}`)
+        await execSync(`cmake . && cmake --build .`)
     } catch (e) {
         process.exit(1)
     }
