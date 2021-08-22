@@ -13,7 +13,8 @@ const runTests = async () => {
     }
     console.log('Compiling stellar...')
     try {
-        await execSync(`cmake . && cmake --build .`)
+        const compilationOut = await execSync(`cmake . && cmake --build .`).toString()
+        console.log(compilationOut)
     } catch (e) {
         process.exit(1)
     }
