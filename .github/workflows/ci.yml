@@ -15,10 +15,9 @@ jobs:
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "11.1.0"
-      - name: Check Clang++ Version
+      - name: Check G++ Version
         run: |
-          clang++ -v
-          llvm-config --has-rtti
+          g++ -v
       - name: Run e2e test runner
         run: |
           node ./scripts/run_e2e_tests.js
