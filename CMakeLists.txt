@@ -175,6 +175,7 @@ string(STRIP ${LDF} LDF)
 link_libraries(${LIBS} ${SYS_LIBS} ${LDF})
 
 execute_process(COMMAND llvm-config --cxxflags OUTPUT_VARIABLE CMAKE_CXX_FLAGS)
+add_compile_options(CMAKE_CXX_FLAGS)
 string(STRIP ${CMAKE_CXX_FLAGS} CMAKE_CXX_FLAGS)
 
 add_library(core ${STELLAR_SRCS})
