@@ -18,6 +18,7 @@ jobs:
       - name: Check Clang++ Version
         run: |
           clang++ -v
+          llvm-config --has-rtti
       - name: Run e2e test runner
         run: |
           node ./scripts/run_e2e_tests.js
