@@ -2,13 +2,20 @@
 Stellar is a compiled language that is built using the LLVM compiler toolchain. The syntax is a mixture of Java and C.
 
 ## Compilation
+### Compiling the compiler
+```bash
+$ cmake .
+$ cmake --build .
+```
+
+### Compiling a program
 To compile a given file, execute the compiler with the name of the file to compile as an argument.
 This will produce a file named `output.o`, an object file that needs to be compiled into machine code.
 This is done using a C++ runner file (`runner.cpp`), which invokes the entry point of your program.
 To use the runner to compile your program, run `g++ runner.cp output.o -static` (`clang++` also works),
 which will produce an executable file named `a.out`.
 
-### Configure standard library
+#### Configure standard library
 The Stellar compiler allows you to use any standard library. A default standard library is in development, but it is not ready.
 If you'd like to create and use your own standard library, you can pass the path to the standard library as the second argument
 to the compiler. You can import the standard library like this:
