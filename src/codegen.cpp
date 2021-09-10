@@ -35,10 +35,8 @@ void generateOutput(const vector<ASTNode*>& nodes) {
         node->codegen(cd);
     }
 
-    cout << "Adding return to main" << endl;
     builder->SetInsertPoint(&func->back());
     builder->CreateRetVoid();
-    cout << "Writing object file..." << endl;
     auto targetTriple = llvm::sys::getDefaultTargetTriple();
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -57,7 +55,6 @@ void generateOutput(const vector<ASTNode*>& nodes) {
     llvm::TargetOptions opt;
     auto RM = llvm::Optional<llvm::Reloc::Model>();
     auto targetMachine = target->createTargetMachine(targetTriple, CPU, features, opt, RM);
-    cout << "Setting data layout" << endl;
     module->setDataLayout(targetMachine->createDataLayout());
     module->setTargetTriple(targetTriple);
     module->setPIELevel(llvm::PIELevel::Large);

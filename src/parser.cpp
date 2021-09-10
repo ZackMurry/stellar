@@ -467,7 +467,6 @@ int getPrimitiveVariableTypeFromToken(const Token& token) {
 
 // Expects parsingIndex to be after '{'. Consumes ending brace
 vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
-    cout << "Getting body of block" << endl;
     int stackSize = 0;
     unsigned long end = parsingIndex;
     vector<Token> bodyTokens;
@@ -486,7 +485,6 @@ vector<ASTNode*> getBodyOfBlock(vector<Token> tokens) {
             break;
         }
     }
-    cout << "Body token size: " << bodyTokens.size() << endl;
     vector<ASTNode*> body = parse(bodyTokens);
     parsingIndex = end + 1;
     return body;
@@ -506,7 +504,6 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, const VariableType& retur
             printFatalErrorMessage("expected type in function parameter", tokens);
         }
         string paramType = tokens[parsingIndex].value;
-        cout << "param type " << paramType << endl;
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
@@ -515,7 +512,6 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, const VariableType& retur
             printFatalErrorMessage("expected parameter name after type", tokens);
         }
         args.push_back(new ASTVariableDefinition(tokens[parsingIndex].value, {paramType, genericTypes}));
-        cout << "arg: " << args.back()->name << endl;
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
@@ -538,8 +534,6 @@ ASTNode* parseFunctionDefinition(vector<Token> tokens, const VariableType& retur
         printOutOfTokensError();
     }
     vector<ASTNode*> body = getBodyOfBlock(tokens);
-    cout << "body size: " << body.size() << endl;
-    cout << "Arg size before creating: " << args.size() << endl;
     return new ASTFunctionDefinition(name, args, body, returnType);
 }
 
@@ -550,7 +544,6 @@ ASTNode* parseArrayAccess(vector<Token> tokens, string name, ASTNode* index) {
         if (++parsingIndex >= tokens.size()) {
             printOutOfTokensError();
         }
-        cout << "Parsing arr acc exp" << endl;
         return new ASTArrayIndexAssignment(move(name), index, parseExpression(tokens));
     }
     if (parsingIndex < tokens.size() && tokens[parsingIndex].type == TOKEN_PUNCTUATION && tokens[parsingIndex].value == ".") {

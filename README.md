@@ -8,6 +8,14 @@ This is done using a C++ runner file (`runner.cpp`), which invokes the entry poi
 To use the runner to compile your program, run `g++ runner.cp output.o -static` (`clang++` also works),
 which will produce an executable file named `a.out`.
 
+### Configure standard library
+The Stellar compiler allows you to use any standard library. A default standard library is in development, but it is not ready.
+If you'd like to create and use your own standard library, you can pass the path to the standard library as the second argument
+to the compiler. You can import the standard library like this:
+```c
+import "std/list.stellar"
+```
+
 ## Examples
 ### Hello, world!
 ```c
@@ -96,4 +104,10 @@ i32 myI32 = 2343i32
 i64 myI64 = 2321321321i64
 bool myBoolean = false
 string myString = "this is a string"
+```
+
+### Imports
+```c
+import "/home/zack/stellar/file_name.stellar"
+// The preprocessor is currently only capable of handling absolute file paths
 ```

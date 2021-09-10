@@ -17,7 +17,11 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     vector<Token> tokens = tokenizeFile(argv[1]);
-    tokens = preprocessTokens(tokens, argv[1], argv[2]);
+    if (argc >= 3) {
+        tokens = preprocessTokens(tokens, argv[1], argv[2]);
+    } else {
+        tokens = preprocessTokens(tokens, argv[1], "");
+    }
     cout << "Lexing complete" << endl;
     vector<ASTNode*> nodes = parse(tokens);
     generateOutput(nodes);

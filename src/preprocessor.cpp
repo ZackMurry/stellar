@@ -33,12 +33,13 @@ vector<Token> preprocessTokens(const vector<Token>& tokens, const string& filePa
         cout << "Import path: " << importPath << endl;
         vector<Token> importedContent;
         if (importPath.substr(0, 3) == "std") {
-            cout << "Importing std file " << importPath.substr(3) << endl;
+            if (stdPath.empty()) {
+                cerr << "Error: standard library referenced but not defined as an argument" << endl;
+            }
             importedContent = preprocessTokens(tokenizeFile(stdPath + importPath.substr(3)), filePath, stdPath);
         } else {
             importedContent = preprocessTokens(tokenizeFile(importPath), filePath, stdPath);
         }
-        cout << "tokens imported: " << importedContent.size() << endl;
         for (const auto& it : importedContent) {
             newTokens.push_back(it);
         }
